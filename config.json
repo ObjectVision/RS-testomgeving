@@ -1,0 +1,9 @@
+{
+  "geodms_version": "19.1.0",
+  "default_sha": "4c99494",
+  "git_repository_url": "https://github.com/ObjectVision/LandUseModelling.git",
+  "project_dir": "C:/LocalData/test_tmp",
+  "local_data_dir": "C:/LocalData",
+  "source_data_dir": "E:/SourceData/RSopen",
+  "test_dir": "C:/LocalData/RSOpen_test"
+}
