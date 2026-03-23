@@ -5,13 +5,11 @@ import os
 import sys
 import importlib.util
 import threading
+import traceback  # Toegevoegd voor gedetailleerde foutmeldingen
 from git_tools import clone_gitrepo_sha1
 from experiment_builder import build_all_experiments, get_experiment_names
 
 def load_geodms_modules(version: str):
-    """
-    Safely loads the profiler and regression modules from the ProgramFiles directory.
-    """
     program_files = os.path.expandvars("%ProgramFiles%")
     base_path = f"{program_files}/ObjectVision/GeoDms{version}"
     
@@ -39,12 +37,14 @@ def load_geodms_modules(version: str):
     return regression_mod, geodms_paths
 
 def execute_test(sha_code, version, config, root, status_label):
-    """
-    Runs the full test suite in the background to prevent freezing the interface.
-    """
     try:
-        local_repo_path = clone_gitrepo_sha1(config["git_repository_url"], sha_code, config["project_dir"])
+        print(f"[*] Start clonen van repository (SHA: {sha_code})... Dit kan even duren.")
+        local_repo_path = clone_gitrepo_sha1(config["git_repository_url"], sha_code, config["test_dir"])
+        print(f"[+] Clonen voltooid. Map: {local_repo_path}")
+        
+        print("[*] GeoDMS modules laden...")
         regression, geodms_paths = load_geodms_modules(version)
+        print("[+] Modules succesvol geladen.")
         
         result_paths = {
             "title": "RuimteScanner Test",
@@ -54,38 +54,41 @@ def execute_test(sha_code, version, config, root, status_label):
         
         mt_args = {"MT1": "S1", "MT2": "S2", "MT3": "S3"}
         
+        print("[*] Experimenten opbouwen en modelparameters patchen...")
         experiments, folder_name = build_all_experiments(regression, geodms_paths, config, result_paths, mt_args, local_repo_path)
+        print(f"[+] {len(experiments)} experiment(en) succesvol klaargezet.")
         
         result_paths["results_folder"] = f"{config['test_dir']}/{folder_name}"
         result_paths["results_log_folder"] = f"{result_paths['results_folder']}/log"
 
+        print("[*] GeoDMS berekeningen starten...")
         regression.run_experiments(experiments)
+        
+        print("[*] Testresultaten verzamelen en HTML rapport genereren...")
         regression.collect_and_generate_test_results(version, result_paths)
+        print("[+] Voltooid!")
         
         root.after(0, lambda: messagebox.showinfo("Complete", "Test successfully finished!"))
         root.after(0, root.destroy)
         
     except Exception as e:
-        root.after(0, lambda: messagebox.showerror("Error", f"An error occurred:\n{str(e)}"))
+        print("\n!!! ER IS EEN FOUT OPGETREDEN !!!")
+        traceback.print_exc()  # Print de exacte fout in de console
+        
+        # De tekst van de fout isoleren zodat Tkinter er niet mee in de knoop raakt
+        err_msg = str(e)
+        root.after(0, lambda msg=err_msg: messagebox.showerror("Error", f"An error occurred:\n{msg}"))
         root.after(0, root.destroy)
 
 def centre_window(window, width, height):
-    """
-    Calculates the screen resolution and centres the Tkinter window.
-    """
     window.update_idletasks()
     screen_width = window.winfo_screenwidth()
     screen_height = window.winfo_screenheight()
-    
     x_coordinate = int((screen_width / 2) - (width / 2))
     y_coordinate = int((screen_height / 2) - (height / 2))
-    
     window.geometry(f"{width}x{height}+{x_coordinate}+{y_coordinate}")
 
 def start_wizard():
-    """
-    Constructs the graphical user interface.
-    """
     try:
         with open("config.json", "r") as f:
             config = json.load(f)
@@ -95,7 +98,7 @@ def start_wizard():
 
     root = tk.Tk()
     root.title("RuimteScanner Test Wizard")
-    centre_window(root, 650, 700)
+    centre_window(root, 650, 550)
 
     def create_input_field(label_text, default_value):
         tk.Label(root, text=label_text).pack(pady=(10, 0))
@@ -106,30 +109,22 @@ def start_wizard():
 
     def create_directory_field(label_text, default_value):
         tk.Label(root, text=label_text).pack(pady=(10, 0))
-        
         frame = tk.Frame(root)
         frame.pack(pady=(0, 5))
-        
         entry = tk.Entry(frame, width=48)
         entry.insert(0, default_value)
         entry.pack(side=tk.LEFT, padx=(0, 5))
-        
         def browse():
             directory = filedialog.askdirectory(initialdir=entry.get() or "C:/")
             if directory:
                 entry.delete(0, tk.END)
                 entry.insert(0, directory)
-                
         btn = tk.Button(frame, text="Browse...", command=browse)
         btn.pack(side=tk.LEFT)
-        
         return entry
 
     sha_entry = create_input_field("Git SHA1 code:", config.get("default_sha", ""))
     version_entry = create_input_field("GeoDMS Version:", config.get("geodms_version", "19.1.0"))
-    
-    project_dir_entry = create_directory_field("Project Directory (Cloning destination):", config.get("project_dir", ""))
-    local_data_entry = create_directory_field("Local Data Directory:", config.get("local_data_dir", ""))
     source_data_entry = create_directory_field("Source Data Directory:", config.get("source_data_dir", ""))
     test_dir_entry = create_directory_field("Test Output Directory:", config.get("test_dir", ""))
 
@@ -144,14 +139,13 @@ def start_wizard():
     
     def on_run():
         sha_val = sha_entry.get().strip()
-        
         if not sha_val:
             messagebox.showerror("Error", "Please provide a valid SHA1 code.")
             return
+        if len(sha_val) > 7:
+            sha_val = sha_val[:7]
             
         config["geodms_version"] = version_entry.get().strip()
-        config["project_dir"] = project_dir_entry.get().strip()
-        config["local_data_dir"] = local_data_entry.get().strip()
         config["source_data_dir"] = source_data_entry.get().strip()
         config["test_dir"] = test_dir_entry.get().strip()
         
@@ -162,7 +156,6 @@ def start_wizard():
 
     run_button = tk.Button(root, text="Start Test", command=on_run, bg="lightblue", font=("Arial", 10, "bold"))
     run_button.pack(pady=20)
-    
     status_label.pack(pady=10)
 
     root.mainloop()

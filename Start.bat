@@ -1,3 +1,3 @@
-@echo off
+REM @echo off
 python main.py
 pause

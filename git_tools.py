@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 def clone_gitrepo_sha1(git_repository_url: str, sha_1: str, projdir: str) -> str:
     """
     Clones a Git repository to a specific directory and checks out a specific commit SHA1.
+    If the directory already exists, it forces a hard reset to clear any leftover patched files.
     """
     if not git_repository_url or not sha_1 or not projdir:
         raise ValueError("URL, SHA1 and projdir must not be empty.")
@@ -27,17 +28,23 @@ def clone_gitrepo_sha1(git_repository_url: str, sha_1: str, projdir: str) -> str
 
     clone_dir = parent_dir / f"{git_repository_name}_{sha_1}"
 
-    if not clone_dir.exists():
-        def run_git(*args: str, cwd: Path | None = None):
-            subprocess.run(
-                ["git", *args],
-                cwd=str(cwd) if cwd else None,
-                check=True,
-                text=True,
-                capture_output=True,
-            )
+    def run_git(*args: str, cwd: Path | None = None):
+        subprocess.run(
+            ["git", *args],
+            cwd=str(cwd) if cwd else None,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
 
+    if not clone_dir.exists():
         run_git("clone", git_repository_url, str(clone_dir))
         run_git("checkout", sha_1, cwd=clone_dir)
+    else:
+        # The directory exists, possibly from a crashed run. 
+        # Force a completely clean state before proceeding.
+        print(f"[*] Map bestaat al. Opschonen van eventuele eerdere patches...")
+        run_git("reset", "--hard", cwd=clone_dir)
+        run_git("clean", "-fd", cwd=clone_dir)
 
     return str(clone_dir).replace("\\", "/")
