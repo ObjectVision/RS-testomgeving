@@ -1,0 +1,5 @@
+{
+  "_doc": "Report-side toleranties (rs_report.py). Eerste passende rule (fnmatch op comparison-naam) wint, anders default. cell_pct = max % afwijkende cellen dat nog 'ok' is.",
+  "default": { "cell_pct": 0.0 },
+  "rules": []
+}
