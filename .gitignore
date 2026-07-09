@@ -10,4 +10,7 @@ env/
 
 # IDE and local settings
 .vscode/
+.vs/
+*.suo
+*.user
 
