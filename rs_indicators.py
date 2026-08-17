@@ -12,7 +12,14 @@ Gebruik:
     python rs_indicators.py --run-a C:/LocalData/RSopen_pre508 --run-b C:/LocalData/RSopen_NL2120
         --buurt C:/LocalData/RS_compare/Buurt_per_AdminDomain_Noord_Holland.tif
         [--buurt-namen buurtnamen.csv] [--zichtjaar Y2040] [--suffix Noord_Holland]
-        [--casus WLO_hoog_BAU] --out C:/LocalData/RS_compare/indicatoren
+        [--casus WLO_hoog_BAU]
+        --out C:/LocalData/RS_compare/issue19_MinimalLandAvailability_pre508_vs_NL2120/indicatoren
+
+--out-conventie: geef per vergelijking een eigen, herleidbare map
+    <RS_compare>/<issueNr>_<omschrijving>_<A>_vs_<B>/indicatoren  (zie RS_compare/README.md).
+    Gebruik NOOIT een generieke naam als .../indicatoren -- losse mappen zijn niet te
+    herleiden naar hun runs. De output draagt zelf een provenance-blok (run-paden,
+    buurt-tif, zichtjaar, casus, timestamp) in indicatoren.json + bovenaan indicatoren.html.
 
 Verwachte run-structuur (ontkoppelde bestanden):
     <run>/BaseData/StandBasisjaar/Wonen/<subsector>_<suffix>.tif
@@ -25,6 +32,7 @@ import glob
 import html
 import json
 import os
+from datetime import datetime, timezone
 
 import numpy as np
 import tifffile
@@ -657,6 +665,24 @@ def main(argv=None):
         f"<td style='text-align:right'>{vb:{fmt}}</td></tr>"
         for nm, va, vb, fmt in summary)
 
+    provenance = {
+        "tool": "rs_indicators.py",
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "run_a": {"name": args.name_a, "path": os.path.abspath(args.run_a)},
+        "run_b": {"name": args.name_b, "path": os.path.abspath(args.run_b)},
+        "buurt": os.path.abspath(args.buurt),
+        "buurt_namen": os.path.abspath(args.buurt_namen) if args.buurt_namen else None,
+        "zichtjaar": args.zichtjaar,
+        "casus": args.casus,
+        "suffix": args.suffix,
+    }
+    prov_html = (
+        f"<div class=\"prov\">Gegenereerd {html.escape(provenance['generated'])} &middot; "
+        f"A ({html.escape(args.name_a)}) = <code>{html.escape(provenance['run_a']['path'])}</code> &middot; "
+        f"B ({html.escape(args.name_b)}) = <code>{html.escape(provenance['run_b']['path'])}</code> &middot; "
+        f"buurt = <code>{html.escape(os.path.basename(provenance['buurt']))}</code></div>"
+    )
+
     doc = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Buurt-indicatoren A vs B</title>
 <style>
@@ -669,8 +695,11 @@ def main(argv=None):
  .fig h3 {{ font-size:13.5px; margin:0 0 2px 0; }}
  .figcap {{ color:#6b6b64; font-size:11.5px; max-width:640px; margin-bottom:6px; }}
  .kpi {{ color:#444; margin:4px 0; }}
+ .prov {{ color:#6b6b64; font-size:11px; margin:6px 0 2px 0; }}
+ .prov code {{ background:#f0f0ec; padding:1px 4px; border-radius:3px; font-size:10.5px; }}
 </style></head><body>
 <h1>Buurt-indicatoren: {html.escape(A['label'])} (A) vs {html.escape(B['label'])} (B)</h1>
+{prov_html}
 <div class="kpi">Studiegebied {html.escape(args.suffix.replace('_', '-'))} &middot;
  zichtjaar {html.escape(args.zichtjaar)} &middot; casus {html.escape(args.casus)} &middot;
  {int(actief.sum()):,} buurten met woninggroei in A of B.</div>
@@ -694,7 +723,8 @@ def main(argv=None):
     with open(out_fn, "w", encoding="utf8") as f:
         f.write(doc)
     with open(os.path.join(args.out, "indicatoren.json"), "w", encoding="utf8") as f:
-        json.dump({"spearman": rho, "mae": mae,
+        json.dump({"provenance": provenance,
+                   "spearman": rho, "mae": mae,
                    "summary": [(n, a, b) for n, a, b, _ in summary]}, f, indent=1)
     print(f"[+] {out_fn}  (rho={rho:.3f}, gini A={gini_a:.3f} B={gini_b:.3f})")
 
