@@ -307,8 +307,14 @@ def lint_share(mask):
         return 0.0
     tot = mask.sum()
     lint_cells = 0
-    for i in range(1, n + 1):
-        rows, cols = np.nonzero(lab == i)
+    # find_objects geeft per label zijn bounding-box-slice, zodat we per cluster alleen
+    # zijn eigen uitsnede bekijken. De vorige vorm scande met lab == i het volledige
+    # raster per cluster en maakte de functie kwadratisch: 50.000 clusters maal 145
+    # miljoen cellen was de bijna volledige rekentijd van dit script (5 uur landelijk).
+    for i, sl in enumerate(ndimage.find_objects(lab), start=1):
+        if sl is None:
+            continue
+        rows, cols = np.nonzero(lab[sl] == i)
         area = len(rows)
         if area < 4:
             continue
