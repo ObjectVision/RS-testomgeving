@@ -8,13 +8,61 @@ resultaten van twee revisies met elkaar vergelijken**, om regressie zichtbaar te
 maken (zien we onbedoelde veranderingen, en zo ja hoeveel en zijn ze gewenst?).
 Implementeert pbl-nl/model-RSopen#16.
 
-De omgeving bestaat uit twee onderdelen die na elkaar gebruikt worden:
+De omgeving bestaat uit de enginetoets (de werkende weg) en twee oudere onderdelen:
 
 ```
   [1] revision-runner            [2] commit-vergelijker
   kies commit + GeoDMS-versie -> reken door -> exports  ->  vergelijk twee runs -> rapport
   (main.py / Start.bat)                                     (rs_compare + rs_report + rs_indicators)
 ```
+
+---
+
+## Enginetoets (`enginetoets\Toets.ps1`)
+
+Status: werkend, gebruikt voor de nachtrun van NL2120 op 6 op 7 oktober 2026. Dit is de uitwerking van
+pbl-nl/model-RSopen#16 die onderdeel 1 vervangt: geen wizard maar scripts met standaardwaarden, zodat
+ook PBL ze kan draaien.
+
+Een project is een branch van de modelrepo. Per branch is er een baseline (de commit van de laatste
+productierun: een git-tag `baseline/<datum>`, het profiel van alle instellingen van die commit, en de
+bewaarde uitvoer van zijn toetsrun) en een log. Elke toets rekent een commit door in een eigen
+git-worktree met een eigen LocalData, onder het profiel van de baseline plus het testprofiel van de
+branch (`enginetoets\profielen\<branch>.csv`: een provincie, een of twee zichtjaren, de varianten), met
+de GeoDMS-versie die `Run2120.ps1` van die commit zelf noemt. Onder dat profiel is de allocatie
+deterministisch, dus elk verschil is rekenwijze of invoer. Groepen commits worden als ketting
+vergeleken: elke groep tegen de toetsrun van de groep ervoor.
+
+```
+cd C:\ProjDir\RSopen_NL2120                                   de werkkopie van het model, of geef -Repo
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Setup.ps1          staat alles er op deze machine
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Baseline.ps1 -Commit <sha> -Omschrijving "de laatste productierun"
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1                        HEAD tegen de baseline
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1 -Commit <sha> -Van <sha ervoor> -Samenvatting "..."
+```
+
+Uitvoer: per branch `C:\LocalData\RSopen_toets\<branch>	oetslog.csv` en `toetslog.html` (alle toetsen
+genummerd, met per schakel het rapport eronder), per run `toetsrapport.md` en `.html` in de kopie onder
+`C:\ProjDir\RSopen_toets\<branch>_<sha>atch\log`. Het rapport leest in de volgorde: wat zit er in de
+commits, hoe anders (koptabel uit Diagnose en per sector het patroon op de kaart), waarom (een paar
+zinnen plus de instellingen die verschillen), verder kijken (per tif de celverschillen, alle
+controlewaarden, de bestanden per commit, de technische gegevens). Oordelen: IDENTIEK, STAND GELIJK
+(alleen een meting anders), VERSCHILT.
+
+| Bestand | Rol |
+|---|---|
+| `Toets.ps1` | een commit doorrekenen en naast de baseline of een eerdere toetsrun leggen |
+| `Baseline.ps1` | een commit tot baseline van een branch maken |
+| `Setup.ps1` | zegt of een machine alles heeft (GeoDMS, git, pwsh 7, Python met numpy en tifffile, ConfigSettings, Data) |
+| `Profiel.py` | het profiel van een commit dumpen en opleggen op een werkkopie |
+| `VergelijkCommits.py` | het statische deel: per commit wat hij raakt (rekenwijze, instellingen, invoer, orkestratie, meting, toelichting) |
+| `Toetsrapport.py` | het rapport van twee runs |
+| `Toetslog.py` | het log van een branch als pagina |
+| `Runinfo.py` | rekentijd en piekgeheugen per stap uit de logs van Run2120.ps1 |
+| `profielen\<branch>.csv` | het testprofiel per branch |
+
+Onderdeel 2 (`rs_compare`, `rs_report`, `rs_indicators`) blijft de doorklik wanneer een rapport
+VERSCHILT zegt en je wilt zien waar op de kaart.
 
 ---
 

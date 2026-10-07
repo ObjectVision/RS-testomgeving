@@ -1,0 +1,7 @@
+pad;waarde;type;bestand
+ModelParameters/StudyArea;'Noord_Holland';String;testprofiel
+ModelParameters/Model_FirstZichtjaar;2040[YearRange];YearRange;testprofiel
+ModelParameters/Model_FinalYear;2050[YearRange];YearRange;testprofiel
+env:PlancapaciteitOpleggen;FALSE;omgeving;testprofiel
+env:AlleenEindjaar;FALSE;omgeving;testprofiel
+run:Varianten;BAU,NbSGenuanceerd;run;testprofiel

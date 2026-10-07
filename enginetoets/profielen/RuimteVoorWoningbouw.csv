@@ -1,0 +1,8 @@
+pad;waarde;type;bestand
+ModelParameters/StudyArea;'Noord_Holland';String;testprofiel
+ModelParameters/Model_FirstZichtjaar;2040[YearRange];YearRange;testprofiel
+ModelParameters/Model_FinalYear;2040[YearRange];YearRange;testprofiel
+ModelParameters/SectorAllocRegio/Elements/Text;'Wonen', 'Gemeente', 'TRUE', 'Default_NrOfIters', '5', 'Beperkt', 'Wonen', 'Provincie', 'FALSE', 'Default_NrOfIters', 'Default_NrOfIters', 'Niet', 'Werken', 'NVM', 'TRUE', 'Default_NrOfIters', '5', 'Beperkt', 'Werken', 'Provincie', 'FALSE', 'Default_NrOfIters', 'Default_NrOfIters', 'Niet';array<String>;testprofiel
+env:PlancapaciteitOpleggen;TRUE;omgeving;testprofiel
+env:AlleenEindjaar;FALSE;omgeving;testprofiel
+run:Varianten;BAU;run;testprofiel
