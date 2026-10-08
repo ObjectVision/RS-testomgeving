@@ -24,7 +24,7 @@
    -Run           De LocalData-map van een toetsrun van die commit die er al staat; leeg laat het script
                   de run zelf maken, met het label baseline.
    -Vol           De volle run van die commit (Toets.ps1 -EigenInstellingen -Label vol), de tweede uitvoer van de
-                  baseline waar Acceptatie.ps1 tegen vergelijkt; komt in baseline_<datum>ol. Bestaat de baseline al,
+                  baseline waar Acceptatie.ps1 tegen vergelijkt; komt in baseline_<datum>\vol. Bestaat de baseline al,
                   dan doet het script alleen dit.
    -Omschrijving  Waarom deze commit de baseline is, in een zin; komt in het log.
    -Datum         De datum in de tagnaam, standaard de commitdatum (jjjj-mm-dd). Een baseline die al
