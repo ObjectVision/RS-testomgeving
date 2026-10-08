@@ -706,12 +706,17 @@ def main():
     p.add_argument("--md")
     p.add_argument("--csv")
     p.add_argument("--alles", action="store_true")
+    p.add_argument("--labels", action="store_true", help="per commit tussen ref_a en ref_b een regel sha, datum, onderwerp, wat hij raakt")
     a = p.parse_args()
 
     # De Descr's staan vol accenten; zonder dit maakt de Windows-console er vraagtekens van.
     sys.stdout.reconfigure(encoding="utf8", errors="replace")
 
     repo = Path(a.repo)
+    if a.labels:
+        for c in commits_tussen(repo, a.ref_a, a.ref_b):
+            print("	".join([c["sha"], c["datum"], c["onderwerp"], ", ".join(c["labels"]) or "leeg"]))
+        return
     rapport, verschillen = bouw_rapport(repo, a.ref_a, a.ref_b, paar(a.env_a), paar(a.env_b), a.alles)
 
     if a.md:

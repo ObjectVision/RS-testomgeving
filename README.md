@@ -21,8 +21,8 @@ De omgeving bestaat uit de enginetoets (de werkende weg) en twee oudere onderdel
 ## Enginetoets (`enginetoets\Toets.ps1`)
 
 Status: werkend, gebruikt voor de nachtrun van NL2120 op 6 op 7 oktober 2026. Dit is de uitwerking van
-pbl-nl/model-RSopen#16 die onderdeel 1 vervangt: geen wizard maar scripts met standaardwaarden, zodat
-ook PBL ze kan draaien.
+pbl-nl/model-RSopen#16 die onderdeel 1 vervangt: scripts met standaardwaarden, en voor wie geen terminal
+wil een venster (`enginetoets\Enginetoets.cmd`, dubbelklikken) dat dezelfde scripts start.
 
 Een project is een branch van de modelrepo. Per branch is er een baseline (de commit van de laatste
 productierun: een git-tag `baseline/<datum>`, het profiel van alle instellingen van die commit, en de
@@ -36,6 +36,8 @@ vergeleken: elke groep tegen de toetsrun van de groep ervoor.
 ```
 cd C:\ProjDir\RSopen_NL2120                                   de werkkopie van het model, of geef -Repo
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Setup.ps1          staat alles er op deze machine
+dubbelklik ..\_Tools\RS-testomgeving\enginetoets\Enginetoets.cmd   het venster: de commits sinds de baseline, kies er een of twee, de toets start (geen terminal nodig)
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Kies.ps1           dezelfde lijst in de console
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Baseline.ps1 -Commit <sha> -Omschrijving "de laatste productierun"
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1                        HEAD tegen de baseline
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1 -Commit <sha> -Van <sha ervoor> -Samenvatting "..."
@@ -62,6 +64,10 @@ controlewaarden, de bestanden per commit, de technische gegevens). Oordelen: IDE
 
 | Bestand | Rol |
 |---|---|
+| `Enginetoets.cmd` | dubbelklikken: opent het venster zonder terminal (vraagt PowerShell 7) |
+| `Enginetoets.ps1` | het venster: de werkkopie kiezen (onthouden in `%LOCALAPPDATA%\RS-testomgeving`), de commits sinds de baseline (datum, onderwerp, wat hij raakt, al getoetst), een of twee rijen, de samenvatting, Start; de toets draait in een eigen venster met een transcript `toets_<sha>_<tijd>.log` naast het toetslog, en het rapport opent vanzelf |
+| `Commitlijst.ps1` | de lijst van commits sinds de baseline, gedeeld door het venster en Kies.ps1 |
+| `Kies.ps1` | dezelfde kiezer in de console: een of twee rijen (Out-GridView, anders een nummer) en Toets.ps1 starten; `-Lijst` drukt alleen de lijst af |
 | `Toets.ps1` | een commit doorrekenen en naast de baseline of een eerdere toetsrun leggen |
 | `Baseline.ps1` | een commit tot baseline van een branch maken; met `-Vol` de volle run erbij als tweede uitvoer |
 | `Acceptatie.ps1` | de volle run van een kandidaat naast die van de baseline, met de normen van ToetsOplevering |
