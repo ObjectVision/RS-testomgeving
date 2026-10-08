@@ -57,6 +57,8 @@
                    in die branch nog niet is gecommit. Komt in batch\log\patch_extern.patch van de kopie.
    -Exe            GeoDmsRun.exe; leeg is de versie die Run2120.ps1 van de commit zelf als standaard noemt.
    -MetIndicatorBasedata  Draai ook WriteBasedata/Generate_Run4_IndicatorenData, als Run2120.ps1 die kent.
+   -EigenInstellingen     Leg het baselineprofiel niet op: de commit rekent met zijn eigen instellingen, alleen het
+                   testprofiel komt eroverheen. Dat is de volle run van de acceptatie (zie Acceptatie.ps1), niet de enginetoets.
    -ZonderVergelijking    Alleen rekenen; geen rapport en geen logregel.
    -AlleenRapport  Niet rekenen; de kopie en de LocalData van deze commit staan er al.
    -Opnieuw        Vervang een bestaande kopie en LocalData van dezelfde naam.
@@ -87,6 +89,7 @@ param(
     [string]   $Repo         = '',
     [string]   $Patch        = '',
     [switch]   $MetIndicatorBasedata,
+    [switch]   $EigenInstellingen,
     [switch]   $ZonderVergelijking,
     [switch]   $AlleenRapport,
     [switch]   $Toon,
@@ -242,8 +245,9 @@ Write-Regel "geodms    : $geodms"
 
 # ---------------------------------------------------------------- 5. het profiel opleggen
 $profielen = @()
-if ($baseMap) { $profielen += (Join-Path $baseMap 'profiel.csv') }
+if ($baseMap -and -not $EigenInstellingen) { $profielen += (Join-Path $baseMap 'profiel.csv') }
 $profielen += $Testprofiel
+if ($EigenInstellingen) { Write-Regel "profiel   : eigen instellingen van de commit, alleen het testprofiel eroverheen" }
 if (-not $AlleenRapport) {
     Invoke-Python (Join-Path $PSScriptRoot 'Profiel.py') apply @profielen --map $Kopie --verslag (Join-Path $LogDir 'profiel.md')
 }
@@ -303,6 +307,7 @@ if (-not $AlleenRapport) {
         "project`t$Project", "commit`t$sha", "datum`t$datum", "onderwerp`t$onderwerp",
         "geodms`t$geodms", "testprofiel`t$(Split-Path $Testprofiel -Leaf)", "baseline`t$baseTag",
         "varianten`t$($Varianten -join ',')", "zichtjaren`t$($zichtjaren -join ',')",
+        "instellingen`t$(if ($EigenInstellingen) { 'eigen' } else { 'baselineprofiel' })",
         "patches`t$(($patches | ForEach-Object { Split-Path $_ -Leaf }) -join ',')",
         "start`t$(Get-Date -Format 's')"
     ) | Set-Content (Join-Path $LocalData 'toets.tsv') -Encoding UTF8

@@ -39,7 +39,18 @@ pwsh ..\_Tools\RS-testomgeving\enginetoets\Setup.ps1          staat alles er op 
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Baseline.ps1 -Commit <sha> -Omschrijving "de laatste productierun"
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1                        HEAD tegen de baseline
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1 -Commit <sha> -Van <sha ervoor> -Samenvatting "..."
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1 -Commit <sha> -Label vol -EigenInstellingen -Testprofiel <map>\profielen\<branch>_vol.csv -ZonderVergelijking
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Acceptatie.ps1 -Commit <sha> -Samenvatting "..."    de volle run naast die van de baseline
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Baseline.ps1 -Commit <sha> -Run <toetsrun> -Vol <volle run> -Omschrijving "..."   akkoord: nieuwe baseline
 ```
+
+De acceptatie is de andere vraag dan de enginetoets: mag deze commit de nieuwe baseline worden? Daarvoor
+draait de kandidaat met zijn eigen instellingen (`-EigenInstellingen`), over alle zichtjaren en de
+varianten van de productie (`profielen\<branch>_vol.csv`), en legt `Acceptatie.ps1` die run naast de
+volle run van de baseline: de instellingen en leveringen die anders staan, de ketting van enginetoetsen
+uit het log, per casus de koptabel van het eindjaar (de andere jaren onder Verder kijken) en de normen
+van `batch\ToetsOplevering.ps1` van de kandidaat op beide runs, met wat van PASS naar FAIL ging. Het log
+krijgt een regel ACCEPTATIE; het oordeel is aan de lezer.
 
 Uitvoer: per branch `C:\LocalData\RSopen_toets\<branch>	oetslog.csv` en `toetslog.html` (alle toetsen
 genummerd, met per schakel het rapport eronder), per run `toetsrapport.md` en `.html` in de kopie onder
@@ -52,7 +63,9 @@ controlewaarden, de bestanden per commit, de technische gegevens). Oordelen: IDE
 | Bestand | Rol |
 |---|---|
 | `Toets.ps1` | een commit doorrekenen en naast de baseline of een eerdere toetsrun leggen |
-| `Baseline.ps1` | een commit tot baseline van een branch maken |
+| `Baseline.ps1` | een commit tot baseline van een branch maken; met `-Vol` de volle run erbij als tweede uitvoer |
+| `Acceptatie.ps1` | de volle run van een kandidaat naast die van de baseline, met de normen van ToetsOplevering |
+| `Acceptatierapport.py` | het acceptatierapport |
 | `Setup.ps1` | zegt of een machine alles heeft (GeoDMS, git, pwsh 7, Python met numpy en tifffile, ConfigSettings, Data) |
 | `Profiel.py` | het profiel van een commit dumpen en opleggen op een werkkopie |
 | `VergelijkCommits.py` | het statische deel: per commit wat hij raakt (rekenwijze, instellingen, invoer, orkestratie, meting, toelichting) |
@@ -60,6 +73,7 @@ controlewaarden, de bestanden per commit, de technische gegevens). Oordelen: IDE
 | `Toetslog.py` | het log van een branch als pagina |
 | `Runinfo.py` | rekentijd en piekgeheugen per stap uit de logs van Run2120.ps1 |
 | `profielen\<branch>.csv` | het testprofiel per branch |
+| `profielen\<branch>_vol.csv` | het profiel van de volle run voor de acceptatie (alleen studiegebied en varianten) |
 
 Onderdeel 2 (`rs_compare`, `rs_report`, `rs_indicators`) blijft de doorklik wanneer een rapport
 VERSCHILT zegt en je wilt zien waar op de kaart.

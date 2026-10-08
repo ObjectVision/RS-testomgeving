@@ -61,6 +61,8 @@ def oordeel_klasse(oordeel):
         return "warn"
     if o.startswith("BASELINE"):
         return "base"
+    if o.startswith("ACCEPTATIE"):
+        return "acc"
     if o.startswith("GEEN OORDEEL"):
         return "muted"
     return "bad"
@@ -224,7 +226,7 @@ ul { margin: 0 0 8px; padding-left: 20px; }
 li { margin: 0 0 3px; }
 .pil { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 700; font-size: 0.8em; letter-spacing: 0.04em;
        border: 1.5px solid currentColor; white-space: nowrap; }
-.ok { color: var(--ok); } .meet { color: var(--meet); } .warn { color: var(--warn); } .bad { color: var(--bad); } .base { color: var(--base); } .muted { color: var(--muted); }
+.ok { color: var(--ok); } .meet { color: var(--meet); } .acc { color: var(--accent); } .warn { color: var(--warn); } .bad { color: var(--bad); } .base { color: var(--base); } .muted { color: var(--muted); }
 .log td.tijd { white-space: nowrap; color: var(--muted); }
 .log .sha { white-space: nowrap; }
 .log .datum { color: var(--muted); font-size: 0.9em; white-space: nowrap; }
@@ -297,7 +299,7 @@ def logpagina(rijen, titel, ondertitel):
     delen.append('<p class="uitleg">Elke toets rekent een commit door onder het profiel van de baseline (alle instellingen zoals bij de laatste '
                  "productierun) en het testprofiel, en legt de standtifs en de controlewaarden naast die van de kant ervoor. Onder dat profiel is de "
                  "allocatie deterministisch, dus elk verschil is een verschil in de rekenwijze of de invoer. IDENTIEK: stand en controlewaarden gelijk. "
-                 "STAND GELIJK: de allocatie is gelijk, alleen een meting is anders. VERSCHILT: de stand is anders.</p></section>")
+                 "STAND GELIJK: de allocatie is gelijk, alleen een meting is anders. VERSCHILT: de stand is anders. ACCEPTATIE: de volle run van een kandidaat met zijn eigen instellingen naast die van de baseline, met de normen van ToetsOplevering.</p></section>")
     # Elk rapport dat nog op schijf staat komt mee, het nieuwste opengeklapt: zo is de pagina het hele log en niet alleen de laatste toets.
     rapporten = []
     for r in reversed(rijen):

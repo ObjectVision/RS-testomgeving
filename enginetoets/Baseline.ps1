@@ -23,6 +23,9 @@
    -Commit        De commit die baseline wordt; standaard HEAD.
    -Run           De LocalData-map van een toetsrun van die commit die er al staat; leeg laat het script
                   de run zelf maken, met het label baseline.
+   -Vol           De volle run van die commit (Toets.ps1 -EigenInstellingen -Label vol), de tweede uitvoer van de
+                  baseline waar Acceptatie.ps1 tegen vergelijkt; komt in baseline_<datum>ol. Bestaat de baseline al,
+                  dan doet het script alleen dit.
    -Omschrijving  Waarom deze commit de baseline is, in een zin; komt in het log.
    -Datum         De datum in de tagnaam, standaard de commitdatum (jjjj-mm-dd). Een baseline die al
                   bestaat wordt niet overschreven; kies dan een andere datum of haal de oude eerst weg.
@@ -35,6 +38,7 @@
 param(
     [string]   $Commit       = 'HEAD',
     [string]   $Run          = '',
+    [string]   $Vol          = '',
     [string]   $Datum        = '',
     [string]   $Omschrijving = '',
     [string]   $Toetsmap     = 'C:\LocalData\RSopen_toets',
@@ -71,6 +75,25 @@ if (-not $Datum) { $Datum = $commitDatum }
 $tag = "baseline/$Datum"
 $map = Join-Path $ProjectMap ("baseline_$Datum")
 
+function Copy-Vol([string]$bron, [string]$doelmap) {
+    if (-not (Test-Path (Join-Path $bron 'Allocatie'))) { throw "de volle run $bron heeft geen Allocatie" }
+    foreach ($sub in @('Allocatie', 'Diagnose', 'BaseData\StandBasisjaar')) {
+        if (Test-Path (Join-Path $bron $sub)) {
+            New-Item -ItemType Directory -Path (Join-Path $doelmap $sub) -Force | Out-Null
+            Copy-Item (Join-Path $bron "$sub\*") (Join-Path $doelmap $sub) -Recurse -Force
+        }
+    }
+    foreach ($bestand in @('run.tsv', 'toets.tsv')) { if (Test-Path (Join-Path $bron $bestand)) { Copy-Item (Join-Path $bron $bestand) $doelmap -Force } }
+    Write-Regel "gekopieerd: volle run naar $doelmap"
+}
+
+if ($Vol -and (Invoke-Git tag --list $tag) -and (Test-Path $map)) {
+    # De baseline staat er al: alleen de volle run erbij hangen.
+    Copy-Vol $Vol (Join-Path $map 'vol')
+    Add-Content (Join-Path $map 'baseline.tsv') "vol`t$Vol" -Encoding UTF8
+    Write-Regel "klaar     : volle run toegevoegd aan $tag"
+    return
+}
 if (Invoke-Git tag --list $tag) { throw "tag $tag bestaat al; kies een andere -Datum" }
 if (Test-Path $map) { throw "map $map bestaat al; kies een andere -Datum of haal hem eerst weg" }
 
@@ -143,6 +166,8 @@ if (Test-Path $effectief) { Copy-Item $effectief (Join-Path $doel 'profiel_effec
 Get-ChildItem (Join-Path $kopie 'batch\log') -Filter '*.patch' -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 } |
     ForEach-Object { Copy-Item $_.FullName (Join-Path $doel $_.Name) -Force; Write-Regel "gekopieerd: $($_.Name)" }
 
+if ($Vol) { Copy-Vol $Vol (Join-Path $map 'vol') }
+
 @(
     "commit`t$sha",
     "onderwerp`t$onderwerp",
@@ -150,6 +175,7 @@ Get-ChildItem (Join-Path $kopie 'batch\log') -Filter '*.patch' -ErrorAction Sile
     "commitdatum`t$commitDatum",
     "omschrijving`t$Omschrijving",
     "toetsrun`t$Run",
+    "vol`t$Vol",
     "casussen`t$($casussen -join ',')",
     "gemaakt`t$(Get-Date -Format 's')"
 ) | Set-Content (Join-Path $map 'baseline.tsv') -Encoding UTF8

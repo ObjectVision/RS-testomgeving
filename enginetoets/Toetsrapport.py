@@ -397,9 +397,10 @@ def samenvatting_auto(commits):
 
 
 def samenvatting_kort(tekst):
-    """De eerste regel of zin, voor de logtabel."""
+    """De eerste zin, voor de logtabel."""
     eerste = tekst.strip().splitlines()[0] if tekst.strip() else ""
-    return eerste if len(eerste) <= 160 else eerste[:157] + "..."
+    zin = re.split(r"(?<=[a-z0-9\)])\. ", eerste, maxsplit=1)[0]
+    return zin if len(zin) <= 180 else zin[:177] + "..."
 
 
 # ---------------------------------------------------------------- de interpretatie

@@ -1,0 +1,5 @@
+pad;waarde;type;bestand
+ModelParameters/StudyArea;'Noord_Holland';String;volprofiel
+env:PlancapaciteitOpleggen;FALSE;omgeving;volprofiel
+env:AlleenEindjaar;FALSE;omgeving;volprofiel
+run:Varianten;BAU,NbSGenuanceerd;run;volprofiel
