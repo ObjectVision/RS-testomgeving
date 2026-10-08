@@ -8,22 +8,22 @@ hoeveelheid ruimte, en bouwt hij even compact?
 
 Vereist dat beide runs op HETZELFDE grid staan (zelfde bbox/resolutie).
 
-Gebruik:
-    python rs_indicators.py --run-a C:/LocalData/RSopen_pre508 --run-b C:/LocalData/RSopen_NL2120
-        --buurt C:/LocalData/RS_compare/Buurt_per_AdminDomain_Noord_Holland.tif
-        [--buurt-namen buurtnamen.csv] [--zichtjaar Y2040] [--suffix Noord_Holland]
-        [--casus WLO_hoog_BAU]
-        --out C:/LocalData/RS_compare/issue19_MinimalLandAvailability_pre508_vs_NL2120/indicatoren
+Gebruik (Kaarten.ps1 in deze map roept dit aan voor twee toetsruns van de enginetoets):
+    python rs_indicators.py --run-a <toetsrun A> --run-b <toetsrun B> --name-a <sha> --name-b <sha>
+        --buurt <Toetsmap>/<branch>/buurtgrid/Buurt_<StudyArea>.tif
+        [--buurt-namen <Toetsmap>/<branch>/buurtgrid/Buurt_namen_<StudyArea>.csv]
+        [--zichtjaar Y2040] [--casus WLO_hoog_BAU] [--suffix Noord_Holland]
+        --out <Toetsmap>/<branch>/kaarten/<A>_<B>/buurtindicatoren_<casus>_<jaar>
 
---out-conventie: geef per vergelijking een eigen, herleidbare map
-    <RS_compare>/<issueNr>_<omschrijving>_<A>_vs_<B>/indicatoren  (zie RS_compare/README.md).
-    Gebruik NOOIT een generieke naam als .../indicatoren -- losse mappen zijn niet te
-    herleiden naar hun runs. De output draagt zelf een provenance-blok (run-paden,
-    buurt-tif, zichtjaar, casus, timestamp) in indicatoren.json + bovenaan indicatoren.html.
+--out-conventie: geef per vergelijking een eigen, herleidbare map; losse mappen met een generieke naam
+    zijn niet te herleiden naar hun runs. De output draagt zelf een provenance-blok (run-paden,
+    buurt-tif, zichtjaar, casus, timestamp) in indicatoren.json en bovenaan indicatoren.html.
 
-Verwachte run-structuur (ontkoppelde bestanden):
-    <run>/BaseData/StandBasisjaar/Wonen/<subsector>_<suffix>.tif
-    <run>/Allocatie/<casus>/Stand<zichtjaar>/Wonen/<subsector>_<suffix>_SS-*.tif
+Verwachte run-structuur (de LocalData van een toetsrun, of de bewaarde uitvoer van de baseline):
+    <run>/BaseData/StandBasisjaar/{Wonen,Werken}/<subsector>_<suffix>.tif
+    <run>/Allocatie/<casus>/Stand<zichtjaar>/{Wonen,Werken}/<subsector>_<suffix>_SS-*.tif
+De subsectoren zijn de bestanden in die mappen (Footprint telt niet mee); een vaste lijst is er niet,
+zodat een nieuwe subsector vanzelf meedoet.
 """
 
 import argparse
@@ -40,11 +40,18 @@ import tifffile
 CELL = 25.0       # celgrootte in meter
 CELL_HA = 0.0625  # 25m-cel in hectare
 
-WONEN_SUBSECTOREN = ["eengezins_SocialeHuur", "eengezins_VrijeSector",
-                     "meergezins_SocialeHuur", "meergezins_VrijeSector"]
-WERKEN_SUBSECTOREN = ["Detailhandel", "Logistiek", "Nijverheid",
-                      "Ov_consumentendiensten", "Overheid_kw_diensten",
-                      "Zak_dienstverlening"]
+NIET_EEN_SUBSECTOR = {"Footprint"}  # bestanden in de standmappen die geen eenhedenkaart zijn
+
+
+def subsectoren(run_dir, suffix, categorie):
+    """De subsectoren van een categorie: de bestanden <subsector>_<suffix>.tif in de basisjaarmap van run_dir."""
+    pat = os.path.join(run_dir, "BaseData", "StandBasisjaar", categorie, f"*_{suffix}.tif")
+    namen = []
+    for fn in sorted(glob.glob(pat)):
+        naam = os.path.basename(fn)[: -len(f"_{suffix}.tif")]
+        if naam not in NIET_EEN_SUBSECTOR:
+            namen.append(naam)
+    return namen
 
 
 # ------------------------------------------------------------------ inlezen
@@ -211,7 +218,7 @@ def svg_stacked_bars(title, ylab, labels, verdicht, uitbreid):
             f'{legend}{body}</svg>')
 
 
-CLUSTER_KLASSEN = [("< 0,4 ha (snippers)", 0, 0.4), ("0,4 – 2 ha", 0.4, 2.0), ("≥ 2 ha", 2.0, float("inf"))]
+CLUSTER_KLASSEN = [("< 0,4 ha (snippers)", 0, 0.4), ("0,4 tot 2 ha", 0.4, 2.0), ("≥ 2 ha", 2.0, float("inf"))]
 
 
 def cluster_sizes(mask):
@@ -430,6 +437,11 @@ def main(argv=None):
     def buurt_label(i):
         return namen.get(i, f"buurt {i}") if namen else f"buurt {i}"
 
+    # De subsectoren komen uit run A; ontbreekt een ervan in B, dan zegt load_stand dat.
+    WONEN_SUBSECTOREN = subsectoren(args.run_a, args.suffix, "Wonen")
+    WERKEN_SUBSECTOREN = subsectoren(args.run_a, args.suffix, "Werken")
+    if not WONEN_SUBSECTOREN:
+        raise FileNotFoundError(f"geen woonsubsectoren in {args.run_a}/BaseData/StandBasisjaar/Wonen/*_{args.suffix}.tif")
     runs = {}
     for tag, rdir, label in (("a", args.run_a, args.name_a), ("b", args.run_b, args.name_b)):
         w0, geo = load_stand(rdir, args.casus, "basisjaar", args.suffix, "Wonen", WONEN_SUBSECTOREN, geo_ref)
@@ -438,6 +450,8 @@ def main(argv=None):
             raise ValueError(f"buurt-grid {buurt.shape} != stand-grid {w0.shape}")
         # werken: banen per subsector; optioneel (kan ontbreken als sector uit staat)
         try:
+            if not WERKEN_SUBSECTOREN:
+                raise FileNotFoundError("geen werksubsectoren")
             j0, _ = load_stand(rdir, args.casus, "basisjaar", args.suffix, "Werken", WERKEN_SUBSECTOREN, geo_ref)
             j1, _ = load_stand(rdir, args.casus, args.zichtjaar, args.suffix, "Werken", WERKEN_SUBSECTOREN, geo_ref)
         except FileNotFoundError:
@@ -522,7 +536,7 @@ def main(argv=None):
     lab_actief = labels_for(actief)
     figs = []
 
-    figs.append(("Figuur 1 — Woninggroei per buurt",
+    figs.append(("Figuur 1: Woninggroei per buurt",
                  f"Plaatst run B ({LB}) de woninggroei in dezelfde buurten als run A ({LA})? "
                  f"Elke punt is een buurt; x = groei in {LA}, y = groei in {LB}. Op de rode diagonaal geven beide runs "
                  f"de buurt evenveel groei. Lees: een punt rechtsonder is een buurt waar {LA} veel bouwt en {LB} weinig. "
@@ -530,7 +544,7 @@ def main(argv=None):
                  svg_scatter(f"Woninggroei per buurt, {args.zichtjaar}",
                              LA, LB, dA, dB, labels=lab_actief)))
 
-    figs.append(("Figuur 2 — Nieuwe wooncellen per buurt",
+    figs.append(("Figuur 2: Nieuwe wooncellen per buurt",
                  f"Ruimtegebruik van de uitbreiding: aantal 25m-cellen dat per buurt nieuw woongebied wordt. "
                  f"Boven de diagonaal = {LB} gebruikt in die buurt meer ruimte voor wonen dan {LA}. "
                  f"Lees: een punt op (40, 90) is een buurt met 40 nieuwe wooncellen (2,5 ha) in {LA} en 90 (5,6 ha) in {LB}.",
@@ -543,7 +557,7 @@ def main(argv=None):
     sel3 = (tot_a >= 10) & (tot_b >= 10)
     va = np.where(tot_a > 0, A["groei_verdicht"] / np.maximum(tot_a, 1e-9), 0)[sel3]
     vb = np.where(tot_b > 0, B["groei_verdicht"] / np.maximum(tot_b, 1e-9), 0)[sel3]
-    figs.append(("Figuur 3 — Verdichtingsaandeel per buurt",
+    figs.append(("Figuur 3: Verdichtingsaandeel per buurt",
                  f"Aandeel van de woninggroei dat binnen bestaande wooncellen landt (0 = alles op nieuwe locaties, "
                  f"1 = alles verdichting). x = {LA}, y = {LB}. Alleen buurten met ≥10 woningen groei in beide runs "
                  f"(n={int(sel3.sum()):,}). Lees: een punt op (0,2; 0,8) is een buurt waar {LA} vooral uitbreidt en {LB} vooral verdicht.",
@@ -554,7 +568,7 @@ def main(argv=None):
     da_ = (A["groei_uitbreid"] / np.maximum(A["n_nieuwe_cellen"], 1) / CELL_HA)[sel4]
     db_ = (B["groei_uitbreid"] / np.maximum(B["n_nieuwe_cellen"], 1) / CELL_HA)[sel4]
     v99 = float(np.percentile(np.concatenate([da_, db_]), 99)) if da_.size else 1.0
-    figs.append(("Figuur 4 — Dichtheid van uitbreidingslocaties per buurt",
+    figs.append(("Figuur 4: Dichtheid van uitbreidingslocaties per buurt",
                  f"Woningen per hectare op de nieuwe woonlocaties: bouwt {LB} uitbreidingen even compact als {LA}? "
                  f"Alleen buurten met ≥{MIN_CELLS} nieuwe cellen in beide runs (n={int(sel4.sum()):,}; assen afgekapt op p99). "
                  f"Lees: een punt op (30, 60) is een buurt waar {LB} de uitbreiding twee keer zo dicht bebouwt als {LA}.",
@@ -565,23 +579,23 @@ def main(argv=None):
     ia = (A["groei_verdicht"] / np.maximum(A["n_verdicht_cellen"], 1))[sel5]
     ib = (B["groei_verdicht"] / np.maximum(B["n_verdicht_cellen"], 1))[sel5]
     v99i = float(np.percentile(np.concatenate([ia, ib]), 99)) if ia.size else 1.0
-    figs.append(("Figuur 5 — Verdichtingsintensiteit per buurt",
+    figs.append(("Figuur 5: Verdichtingsintensiteit per buurt",
                  f"Waar verdicht wordt: hoeveel woningen komen er gemiddeld bij per bestaande wooncel? "
                  f"x = {LA}, y = {LB}; alleen buurten met ≥{MIN_CELLS} verdichtende cellen in beide runs "
                  f"(n={int(sel5.sum()):,}; assen afgekapt op p99).",
                  svg_scatter("Verdichtingsintensiteit (won/cel)", LA, LB,
                              ia, ib, vmax=v99i, labels=labels_for(sel5))))
 
-    figs.append(("Figuur 6 — Decompositie van de woninggroei",
+    figs.append(("Figuur 6: Decompositie van de woninggroei",
                  f"Totale woninggroei opgesplitst in verdichting (binnen bestaande wooncellen) en uitbreiding "
-                 f"(op nieuwe woonlocaties). Vergelijkbare verhouding = de nieuwe engine verandert de inbreiding/"
-                 f"uitbreiding-balans niet.",
+                 f"(op nieuwe woonlocaties). Een andere verhouding betekent dat de wijziging de balans tussen "
+                 f"inbreiding en uitbreiding verschuift.",
                  svg_stacked_bars("Inbreiding vs uitbreiding", "woningen",
                                   [LA, LB],
                                   [A["groei_verdicht"].sum(), B["groei_verdicht"].sum()],
                                   [A["groei_uitbreid"].sum(), B["groei_uitbreid"].sum()])))
 
-    figs.append(("Figuur 7 — Concentratie van woninggroei (Lorenz)",
+    figs.append(("Figuur 7: Concentratie van woninggroei (Lorenz)",
                  f"Buurten gesorteerd op groei (grootste eerst); de curve toont welk cumulatief aandeel van de totale "
                  f"groei in welk aandeel van de buurten landt. Hogere curve / hogere Gini = groei sterker geconcentreerd "
                  f"in minder buurten.",
@@ -591,24 +605,22 @@ def main(argv=None):
 
     sizes_a = cluster_sizes(A["nieuw_mask"])
     sizes_b = cluster_sizes(B["nieuw_mask"])
-    figs.append(("Figuur 8 — Clustergrootte van nieuwe woonlocaties",
-                 f"Aaneengesloten groepen nieuwe wooncellen (8-buur), ingedeeld naar omvang. Dit meet het directe doel "
-                 f"van de wijziging: de nieuwe engine wijst clusters kleiner dan de minimale groepsgrootte "
-                 f"(0,4 ha binnen woonkernen, 2 ha daarbuiten) af. Verwachting: {LA} heeft veel snippers "
-                 f"(< 0,4 ha), {LB} vrijwel geen. Balken tonen het aandeel van het totale nieuwe woonareaal per klasse; "
-                 f"tussen haakjes het totale aantal clusters per run.",
+    figs.append(("Figuur 8: Clustergrootte van nieuwe woonlocaties",
+                 f"Aaneengesloten groepen nieuwe wooncellen (8-buur), ingedeeld naar omvang. De minimale groepsgrootte "
+                 f"van de allocatie (0,4 ha binnen woonkernen, 2 ha daarbuiten) hoort hier zichtbaar te zijn: een run "
+                 f"die snippers onder 0,4 ha toelaat bouwt anders dan een run die ze afwijst. Balken tonen het aandeel "
+                 f"van het totale nieuwe woonareaal per klasse; tussen haakjes het totale aantal clusters per run.",
                  svg_cluster_bars("Nieuw woonareaal naar clustergrootte",
                                   LA, sizes_a, LB, sizes_b)))
 
     # Figuur 9: randdichtheid + lintaandeel (vorm, niet alleen grootte)
     ed_a, ed_b = edge_density(A["nieuw_mask"]), edge_density(B["nieuw_mask"])
     lint_a, lint_b = lint_share(A["nieuw_mask"]), lint_share(B["nieuw_mask"])
-    figs.append(("Figuur 9 — Vorm van de nieuwe woonlocaties (randdichtheid & linten)",
-                 f"Grootte alleen vangt geen linten: een smalle sliep van 2 ha langs een weg passeert de "
+    figs.append(("Figuur 9: Vorm van de nieuwe woonlocaties (randdichtheid & linten)",
+                 f"Grootte alleen vangt geen linten: een smalle sliert van 2 ha langs een weg passeert de "
                  f"groottedrempel maar is precies het te vermijden patroon. Randdichtheid = meter rand per hectare nieuw "
                  f"woongebied (hoog = versnipperd/lint, laag = compact blok). Lintaandeel = deel van het nieuwe "
-                 f"woonareaal in langgerekte, smalle clusters (elongatie ≥ 3 én breedte ≤ 2 cellen). "
-                 f"Verwachting: {LB} lager op beide.",
+                 f"woonareaal in langgerekte, smalle clusters (elongatie ≥ 3 en breedte ≤ 2 cellen).",
                  svg_metric_bars("Vorm van nieuwe woonlocaties",
                                  [("Randdichtheid (m/ha)", ed_a, ed_b, ",.0f"),
                                   ("Lintaandeel", lint_a, lint_b, ".1%")],
@@ -618,7 +630,7 @@ def main(argv=None):
     dist_a = afstand_tot_bestaand(A["nieuw_mask"], A["bestaand0_mask"])
     dist_b = afstand_tot_bestaand(B["nieuw_mask"], B["bestaand0_mask"])
     xmax_d = float(np.percentile(np.concatenate([dist_a, dist_b]), 98)) if len(dist_a) else 1000.0
-    figs.append(("Figuur 10 — Aansluiting op bestaand bebouwd gebied (leapfrog)",
+    figs.append(("Figuur 10: Aansluiting op bestaand bebouwd gebied (leapfrog)",
                  f"Afstand van elke nieuwe wooncel tot het dichtstbijzijnde in het basisjaar bebouwde (wonen óf werken) "
                  f"gebied. Curve verder naar links = nieuwe ontwikkeling sluit dichter aan op bestaand weefsel; "
                  f"een staart naar rechts = losse ontwikkeling in het veld ('leapfrog'). "
@@ -633,12 +645,12 @@ def main(argv=None):
         rho_w = spearman(jA, jB)
         wsizes_a = cluster_sizes(A["nieuw_werk_mask"])
         wsizes_b = cluster_sizes(B["nieuw_werk_mask"])
-        figs.append((f"Figuur 11 — Banengroei per buurt (Spearman {rho_w:.3f})",
+        figs.append((f"Figuur 11: Banengroei per buurt (Spearman {rho_w:.3f})",
                      f"Spiegel van figuur 1 voor werken: wonen en werken concurreren om dezelfde cellen, dus een "
                      f"wijziging aan de wonen-kant kan de banenallocatie verschuiven. x = banengroei {LA}, y = {LB}.",
                      svg_scatter(f"Banengroei per buurt, {args.zichtjaar}",
                                  LA, LB, jA, jB, labels=labels_for(actief_w))))
-        figs.append(("Figuur 12 — Clustergrootte van nieuwe werklocaties",
+        figs.append(("Figuur 12: Clustergrootte van nieuwe werklocaties",
                      f"Spiegel van figuur 8 voor werken: doet de clustering hetzelfde bij bedrijventerreinen "
                      f"als bij wonen?",
                      svg_cluster_bars("Nieuw werkareaal naar clustergrootte",

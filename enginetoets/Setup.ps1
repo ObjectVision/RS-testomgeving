@@ -18,7 +18,7 @@
      GeoDmsRun.exe van de versie die -Exe van Toets.ps1 noemt, git op het pad, PowerShell 7,
      Python 3.10 of hoger zonder pakketten, de registersleutel LocalDataDir van GeoDMS,
      cfg\main\ConfigSettings.dms, de map Data, en de bronmap achter SourceDataDir.
-   Voor de doorklik (celverschillen in het rapport): de Python-pakketten numpy en tifffile.
+   Voor de celverschillen per tif in het rapport: de Python-pakketten numpy en tifffile.
    Voor de buurtfiguren van RS-testomgeving daarnaast scipy; die staan buiten dit script.
 ================================================================================================
 #>
@@ -86,8 +86,8 @@ if ($py) {
     else { Meld 'ONTBREEKT' 'Python' "versie $($v[0]).$($v[1]); de scripts vragen 3.10 of hoger (https://www.python.org/downloads/)" }
     foreach ($pakket in @('numpy', 'tifffile')) {
         & python -c "import $pakket" 2>$null
-        if ($LASTEXITCODE -eq 0) { Meld 'OK' "Python-pakket $pakket" 'voor de doorklik op celniveau' }
-        else { Meld 'OPTIONEEL' "Python-pakket $pakket" "niet aanwezig; het oordeel werkt zonder, de doorklik niet. Installeren: python -m pip install $pakket" }
+        if ($LASTEXITCODE -eq 0) { Meld 'OK' "Python-pakket $pakket" 'voor de celverschillen per tif in het rapport' }
+        else { Meld 'OPTIONEEL' "Python-pakket $pakket" "niet aanwezig; het oordeel werkt zonder, de celverschillen per tif niet" }
     }
 } else {
     Meld 'ONTBREEKT' 'Python' 'niet op het pad; installeer Python 3.10 of hoger (https://www.python.org/downloads/) met "Add to PATH" aangevinkt'

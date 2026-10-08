@@ -693,7 +693,7 @@ def bouw(run_a, run_b, naam_a, naam_b, casussen, repo, ref_a, ref_b, kopie_b=Non
         for rel in anders:
             cv = celverschil(ta[rel], tb[rel])
             if cv is None:
-                trijen.append([kort_tif(rel), "doorklik vraagt numpy en tifffile", "", "", "", ""])
+                trijen.append([kort_tif(rel), "celvergelijking vraagt numpy en tifffile", "", "", "", ""])
             elif "vorm" in cv:
                 trijen.append([kort_tif(rel), "andere vorm", cv["vorm"], "", "", ""])
             else:
@@ -742,7 +742,7 @@ def bouw(run_a, run_b, naam_a, naam_b, casussen, repo, ref_a, ref_b, kopie_b=Non
         r += details_patch
         r.append("")
 
-    r.append("### Technisch")
+    r.append("### Hoe de runs draaiden")
     r.append("")
     def mt(x, k):
         return nl(format(x[k], ".1f")) if x and x.get(k) is not None else ""
@@ -757,6 +757,8 @@ def bouw(run_a, run_b, naam_a, naam_b, casussen, repo, ref_a, ref_b, kopie_b=Non
         ["rekentijd hele toets (min)", mt(maten_a, "totaal_min"), mt(maten_b, "totaal_min")],
         ["piekgeheugen allocatie (GB)", mt(maten_a, "piek_gb"), mt(maten_b, "piek_gb")],
         ["uitvoer", str(run_a), str(run_b)],
+        ["kaarten en grafieken", "", "kaarten\\Kaarten.ps1 -Commit " + naam_b
+         + ("" if "baseline_" in str(run_a) else " -Van " + naam_a)],
     ]
     r += tabel(["", f"van {naam_a}", f"naar {naam_b}"], [t for t in trijen if t[1] or t[2]])
     r.append("")

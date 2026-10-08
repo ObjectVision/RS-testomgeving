@@ -1,28 +1,23 @@
 # RS-testomgeving
 
-Test- en versievergelijkomgeving voor [RSopen](https://github.com/ObjectVision/RSopen)
-(RuimteScanner, een GeoDMS-model).
+Toetsgereedschap voor [RSopen](https://github.com/ObjectVision/RSopen) (RuimteScanner, een GeoDMS-model):
+de uitkomsten van commits van een branch naast elkaar leggen zonder de code te lezen, zodat regressie
+zichtbaar wordt en een oplevering met een gerust hart de nieuwe baseline kan worden. Uitwerking van
+pbl-nl/model-RSopen#16.
 
-Doel van het geheel: **een specifieke revisie van het model uitrekenen en de
-resultaten van twee revisies met elkaar vergelijken**, om regressie zichtbaar te
-maken (zien we onbedoelde veranderingen, en zo ja hoeveel en zijn ze gewenst?).
-Implementeert pbl-nl/model-RSopen#16.
+Twee mappen:
 
-De omgeving bestaat uit de enginetoets (de werkende weg) en twee oudere onderdelen:
+| Map | Wat | Startpunt |
+|---|---|---|
+| `enginetoets` | een commit doorrekenen onder het bevroren profiel van de baseline en het verschil met een eerdere run meten: koptabel, patroon per sector, controlewaarden, en een oordeel in het toetslog van de branch | `Enginetoets.cmd` (dubbelklik), of `Toets.ps1` |
+| `kaarten` | kaarten en grafieken als een toets VERSCHILT zegt: per kaart de verschilcellen in beeld, en per CBS-buurt waar en in welke vorm de groei landt | `Kaarten.ps1 -Commit <sha> -Van <sha>` |
 
-```
-  [1] revision-runner            [2] commit-vergelijker
-  kies commit + GeoDMS-versie -> reken door -> exports  ->  vergelijk twee runs -> rapport
-  (main.py / Start.bat)                                     (rs_compare + rs_report + rs_indicators)
-```
+De scripts staan buiten de modelrepo; alleen de baseline-tag staat in de modelrepo. Ze draaien vanuit de
+werkkopie van het model (de map met `cfg\main.dms`), of met `-Repo` naar die werkkopie.
 
 ---
 
-## Enginetoets (`enginetoets\Toets.ps1`)
-
-Status: werkend, gebruikt voor de nachtrun van NL2120 op 6 op 7 oktober 2026. Dit is de uitwerking van
-pbl-nl/model-RSopen#16 die onderdeel 1 vervangt: scripts met standaardwaarden, en voor wie geen terminal
-wil een venster (`enginetoets\Enginetoets.cmd`, dubbelklikken) dat dezelfde scripts start.
+## Enginetoets (`enginetoets`)
 
 Een project is een branch van de modelrepo. Per branch is er een baseline (de commit van de laatste
 productierun: een git-tag `baseline/<datum>`, het profiel van alle instellingen van die commit, en de
@@ -34,16 +29,17 @@ deterministisch, dus elk verschil is rekenwijze of invoer. Groepen commits worde
 vergeleken: elke groep tegen de toetsrun van de groep ervoor.
 
 ```
+dubbelklik enginetoets\Enginetoets.cmd                        het venster: de commits sinds de baseline, kies er een of twee, de toets start (geen terminal nodig)
 cd C:\ProjDir\RSopen_NL2120                                   de werkkopie van het model, of geef -Repo
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Setup.ps1          staat alles er op deze machine
-dubbelklik ..\_Tools\RS-testomgeving\enginetoets\Enginetoets.cmd   het venster: de commits sinds de baseline, kies er een of twee, de toets start (geen terminal nodig)
-pwsh ..\_Tools\RS-testomgeving\enginetoets\Kies.ps1           dezelfde lijst in de console
+pwsh ..\_Tools\RS-testomgeving\enginetoets\Kies.ps1           dezelfde kiezer in de console
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Baseline.ps1 -Commit <sha> -Omschrijving "de laatste productierun"
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1                        HEAD tegen de baseline
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1 -Commit <sha> -Van <sha ervoor> -Samenvatting "..."
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Toets.ps1 -Commit <sha> -Label vol -EigenInstellingen -Testprofiel <map>\profielen\<branch>_vol.csv -ZonderVergelijking
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Acceptatie.ps1 -Commit <sha> -Samenvatting "..."    de volle run naast die van de baseline
 pwsh ..\_Tools\RS-testomgeving\enginetoets\Baseline.ps1 -Commit <sha> -Run <toetsrun> -Vol <volle run> -Omschrijving "..."   akkoord: nieuwe baseline
+pwsh ..\_Tools\RS-testomgeving\kaarten\Kaarten.ps1 -Commit <sha> -Van <sha ervoor>             kaarten en grafieken van het verschil
 ```
 
 De acceptatie is de andere vraag dan de enginetoets: mag deze commit de nieuwe baseline worden? Daarvoor
@@ -54,9 +50,9 @@ uit het log, per casus de koptabel van het eindjaar (de andere jaren onder Verde
 van `batch\ToetsOplevering.ps1` van de kandidaat op beide runs, met wat van PASS naar FAIL ging. Het log
 krijgt een regel ACCEPTATIE; het oordeel is aan de lezer.
 
-Uitvoer: per branch `C:\LocalData\RSopen_toets\<branch>	oetslog.csv` en `toetslog.html` (alle toetsen
+Uitvoer: per branch `C:\LocalData\RSopen_toets\<branch>\toetslog.csv` en `toetslog.html` (alle toetsen
 genummerd, met per schakel het rapport eronder), per run `toetsrapport.md` en `.html` in de kopie onder
-`C:\ProjDir\RSopen_toets\<branch>_<sha>atch\log`. Het rapport leest in de volgorde: wat zit er in de
+`C:\ProjDir\RSopen_toets\<branch>_<sha>\batch\log`. Het rapport leest in de volgorde: wat zit er in de
 commits, hoe anders (koptabel uit Diagnose en per sector het patroon op de kaart), waarom (een paar
 zinnen plus de instellingen die verschillen), verder kijken (per tif de celverschillen, alle
 controlewaarden, de bestanden per commit, de technische gegevens). Oordelen: IDENTIEK, STAND GELIJK
@@ -81,144 +77,96 @@ controlewaarden, de bestanden per commit, de technische gegevens). Oordelen: IDE
 | `profielen\<branch>.csv` | het testprofiel per branch |
 | `profielen\<branch>_vol.csv` | het profiel van de volle run voor de acceptatie (alleen studiegebied en varianten) |
 
-Onderdeel 2 (`rs_compare`, `rs_report`, `rs_indicators`) blijft de doorklik wanneer een rapport
-VERSCHILT zegt en je wilt zien waar op de kaart.
-
 ---
 
-## Onderdeel 1 — revision-runner (`main.py`)
+## Kaarten en grafieken (`kaarten`)
 
-**Status: in revisie.** Dit deel is ouder en moet weer werkend gemaakt worden
-(zie "Openstaand" onderaan). Het idee: via een klein venster kies je een
-git-commit (SHA) en een GeoDMS-versie, waarna het die commit cloont, de
-modelparameters gelijktrekt en het model doorrekent met `GeoDmsRun.exe`.
+De enginetoets zegt of en hoeveel twee commits verschillen. De scripts in `kaarten` laten zien waar en in
+welke vorm, buiten het model om, in Python op de weggeschreven bestanden; daardoor werkt hij voor elk paar
+runs, ook van commits van voor een wijziging in de meetkant van de configuratie. Hij volgt de scheiding
+tussen meten en oordelen: het meten schrijft ruwe getallen (json), het rapport velt het oordeel met
+instelbare toleranties, dus toleranties bijstellen is alleen het rapport opnieuw maken.
 
-Bestanden:
-
-| Bestand | Rol |
-|---|---|
-| `Start.bat` | startpunt: draait `python main.py` |
-| `main.py` | Tkinter-wizard + orchestratie (clone -> laad GeoDMS-modules -> run -> rapport) |
-| `git_tools.py` | `git clone` + checkout van een SHA naar de test-map (idempotent: reset+clean bij hergebruik) |
-| `experiment_builder.py` | bouwt de GeoDmsRun-commando's; cascade-fallback voor gewijzigde configpaden/nodes |
-| `overrides.py` | patcht `SectorAllocRegio` en forceert engine-settings zodat je hetzelfde vergelijkt |
-| `config.json` | GeoDMS-versie, default-SHA, repo-URL, SourceData- en test-map |
-
-Aanroep van GeoDMS (per experiment):
-```
-GeoDmsRun.exe /L<logpad> /<MT1> /<MT2> /<MT3> <cfg> @statistics <result_node>
-```
-
-De rapportage van dit onderdeel leunt nu nog op `regression.py`/`profiler.py`
-uit de GeoDMS-installatiemap. Het plan is die te vervangen door onderdeel 2
-(zie "Openstaand").
-
----
-
-## Onderdeel 2 — commit-vergelijker (`rs_compare.py`, `rs_report.py`, `rs_indicators.py`)
-
-**Status: werkend.** Vergelijkt **buiten het model om** (Python, op de
-geexporteerde bestanden). Bewuste keuze: oude commits kunnen geen nieuwe
-meet-API in de config bevatten, maar bestanden vergelijken werkt voor elk
-commit-paar. Volgt de scheiding **meting vs. oordeel** uit de GeoDMS-Test
-output-standaard: het meten schrijft ruwe getallen (json), het rapport velt het
-oordeel op basis van instelbare toleranties. Toleranties bijstellen = alleen het
-rapport opnieuw genereren, geen model-rerun.
-
-### Voorwaarden
-
-- Python >= 3.10; `pip install numpy tifffile pillow imagecodecs scipy`
-  (voor de render-controle van figuren optioneel: `svglib reportlab pypdfium2`).
-- Twee runs die op **hetzelfde grid** staan (zelfde bbox/resolutie). Staan ze dat
-  niet (bijv. door een gewijzigde studygebied-bbox tussen commits), dan valt
-  `rs_compare` terug op aggregatie naar een gemeenschappelijk 100m-raster — dat
-  is een noodgreep met detailverlies; zuiverder is de grids gelijk te trekken.
-- Resultaatbestanden krijgen wel een StudyArea-suffix maar **geen** commit-suffix.
-  Geef daarom elke run zijn eigen `LocalDataDir`, of kopieer de exports tussen
-  runs weg.
-
-### Stap A — `rs_compare.py`: meet de verschillen
-
-Vergelijkt alle bestanden onder twee mappen, gematcht op relatief pad.
+`Kaarten.ps1` zet beide scripts op twee toetsruns van dezelfde branch (de commit en de baseline, of met
+`-Van` een eerdere toetsrun), per casus die beide runs hebben, voor het laatste zichtjaar of `-Zichtjaar`:
 
 ```
-python rs_compare.py <run_dir_a> <run_dir_b> --out <compare_dir> \
-    --name-a pre508 --name-b head \
-    [--only "*StandY2040*Noord_Holland*"] [--report]
+pwsh ..\_Tools\RS-testomgeving\kaarten\Kaarten.ps1 -Commit a3309144 -Van 3827fbed -Toon
 ```
+
+Uitvoer onder `C:\LocalData\RSopen_toets\<branch>\kaarten\<A>_<B>\`: `verschilkaarten_<casus>_<jaar>\report.html`
+en `buurtindicatoren_<casus>_<jaar>\indicatoren.html`. Het buurtgrid dat de indicatoren nodig hebben (het
+buurtnummer per cel op het raster van het studiegebied, met een csv van buurt- en gemeentenamen) maakt
+het script eenmalig per branch en studiegebied met GeoDMS uit de kopie van de commit, via een tijdelijk
+exportitem dat na afloop weer weg is; het staat onder `<Toetsmap>\<branch>\buurtgrid`.
+
+### `rs_compare.py` en `rs_report.py`: per kaart de verschilcellen
+
+`rs_compare.py` vergelijkt alle bestanden onder twee mappen, gematcht op relatief pad (`--only` beperkt
+tot een glob, zoals `Allocatie/<casus>/Stand<jaar>/*`):
 
 | Type | Vergelijking | Artefacten bij verschil |
 |---|---|---|
-| `.tif` categoriaal (int) | celgewijs | `_diff.tif`, `_confusion.csv`, `_sample.csv` (top-N met RD-coord.), PNG's A/B/diff |
-| `.tif` numeriek (float) | celgewijs + sommen | `_diff.tif` (B-A), `_sample.csv`, PNG's A/B/diff |
-| `.csv` | celgewijs (numeriek-tolerant) | - |
-| overig | byte-vergelijking | - |
+| `.tif` categoriaal (int) | celgewijs | `_diff.tif`, `_confusion.csv` (klasse x klasse), `_sample.csv` (top-N met RD-coordinaten), miniaturen A, B en verschil |
+| `.tif` numeriek (float) | celgewijs plus sommen | `_diff.tif` (B min A), `_sample.csv`, miniaturen A, B en verschil |
+| `.csv` | celgewijs, numeriek tolerant | geen |
+| overig | bytevergelijking | geen |
 
-`.xml`/`.tfw`/logs worden genegeerd (`--include-xml` zet xml wel aan). Uitvoer:
-`compare.result.json` (schema 2, meting zonder oordeel) + `artifacts/`.
+`.xml`, `.tfw` en logs doen niet mee. Twee runs horen op hetzelfde raster te staan; staan ze dat niet,
+dan valt het script terug op een som of modus per 100 meter-cel, met detailverlies. `rs_report.py` velt
+het oordeel per bestand (identiek, binnen tolerantie, verschilt; structuurverschil of meetfout is rood,
+alleen in A of B is een waarschuwing) met `tolerances.json` (per patroon een `cell_pct`, het aandeel
+afwijkende cellen dat nog goed is) en maakt er een pagina van met de miniaturen.
 
-### Stap B — `rs_report.py`: vel het oordeel + HTML
+### `rs_indicators.py`: per buurt waar en hoe compact de groei landt
 
-```
-python rs_report.py <compare_dir>/compare.result.json [--tolerances tolerances.json] [--out report.html]
-```
+Gebaseerd op het voorstel voor validatie van de RuimteScanner (Object Vision, maart 2026), omgezet van
+model tegen waarneming naar run A tegen run B. De vraag per figuur: plaatst run B de groei in dezelfde
+buurten, gebruikt hij evenveel ruimte, en bouwt hij even compact? Twaalf figuren in een pagina, met per
+figuur een leeswijzer:
 
-`tolerances.json`: per bestand/patroon een `cell_pct` (max % afwijkende cellen
-dat nog "ok" is). Verdict-regels: identiek of binnen tolerantie = ok; erboven =
-"output differs" (rood); shape/structuur/meetfout = rood; alleen in A of B = warn.
-Nooit een holle OK. `--report` in stap A draait stap B meteen mee.
+1. woninggroei per buurt (punt per buurt, Spearman-rangcorrelatie, de grootste afwijkers gelabeld)
+2. nieuwe wooncellen per buurt
+3. verdichtingsaandeel per buurt
+4. dichtheid van de uitbreidingslocaties (woningen per hectare)
+5. verdichtingsintensiteit (woningen per bestaande wooncel)
+6. decompositie van de groei in inbreiding en uitbreiding
+7. concentratie van de groei (Lorenz-curve en Gini)
+8. clustergrootte van de nieuwe woonlocaties (snippers onder 0,4 ha, 0,4 tot 2 ha, 2 ha en meer)
+9. vorm van de nieuwe woonlocaties: randdichtheid en lintaandeel
+10. afstand van nieuwe wooncellen tot bestaand bebouwd gebied (leapfrog)
+11. banengroei per buurt, de spiegel van figuur 1 voor werken
+12. clustergrootte van nieuwe werklocaties
 
-### Stap C (optioneel) — `rs_indicators.py`: buurt-niveau indicatoren
+Daarboven een tabel met kerncijfers van beide runs en daaronder de vijftien buurten waar de runs het
+meest uiteenlopen. De subsectoren komen uit de basisjaarmap van run A, dus een nieuwe subsector doet
+vanzelf mee. Bij #847 (a4fb0b15 tegen a3309144, BAU 2040, Noord-Holland) zegt deze pagina wat de
+koptabel van de enginetoets niet zegt: het aantal woningen bleef gelijk, maar er kwamen 17.700 nieuwe
+wooncellen bij, de dichtheid van de uitbreiding ging van 49 naar 41 woningen per hectare en het aandeel
+nieuwe cellen binnen 300 meter van bestaand bebouwd gebied van 86 naar 82 procent.
 
-Inhoudelijke vergelijking op CBS-buurtniveau (gebaseerd op "Voorstel voor
-validatie van Ruimtescanner", Claassens 2026), omgezet van model-vs-observatie
-naar run-A-vs-run-B.
+Voorwaarden: Python 3.10 of hoger met `numpy`, `tifffile`, `pillow`, `imagecodecs` en `scipy`.
 
-```
-python rs_indicators.py --run-a <run_a> --run-b <run_b> \
-    --name-a pre508 --name-b head \
-    --buurt <buurt_grid.tif> [--buurt-namen <buurt.csv>] \
-    --zichtjaar Y2040 [--casus WLO_hoog_BAU] [--suffix Noord_Holland] \
-    --out <indicatoren_dir>
-```
-
-Vereist een **buurt-grid-tif** (buurt-id per cel, zelfde grid als de runs):
-exporteer in de GeoDMS-config `/SourceData/RegioIndelingen/Buurt/Per_AdminDomain`.
-`--buurt-namen` is een csv met kolommen `id;name;Gemeente_name` (voor labels).
-
-Levert `indicatoren.html` met 12 figuren: woninggroei per buurt (scatter +
-Spearman, met outlier-labels), nieuwe wooncellen, verdichtingsaandeel, dichtheid
-uitbreiding, verdichtingsintensiteit, in-/uitbreiding-decompositie, Lorenz/Gini,
-clustergrootteverdeling, randdichtheid + lintaandeel, leapfrog-afstand tot
-bestaand bebouwd, en banengroei + werkcluster-verdeling (werken-spiegel).
-
-De runstructuur die verwacht wordt:
-```
-<run>/BaseData/StandBasisjaar/{Wonen,Werken}/<subsector>_<suffix>.tif
-<run>/Allocatie/<casus>/Stand<zichtjaar>/{Wonen,Werken}/<subsector>_<suffix>_SS-*.tif
-```
-
----
-
-## Voorbeeld-workflow (zoals gebruikt voor #508, Noord-Holland)
-
-1. Run A ("voor"): oude commit uitrekenen naar een eigen `LocalDataDir`.
-2. Run B ("na"): huidige commit, eigen `LocalDataDir`.
-   (Beide met identieke parameters/scenario, zodat alleen de te onderzoeken
-   codewijziging het verschil maakt.)
-3. `rs_compare.py A/Allocatie B/Allocatie --out cmp --only "*StandY2040*NH*" --report`
-   -> `report.html`.
-4. `rs_indicators.py --run-a A --run-b B --buurt buurt.tif --out ind`
-   -> `indicatoren.html`.
+| Bestand | Rol |
+|---|---|
+| `Kaarten.ps1` | twee toetsruns kiezen, het buurtgrid maken als het er nog niet is, en beide scripts per casus draaien |
+| `rs_compare.py` | het meten: per bestand de verschillen, met diff-tif, verwarringsmatrix, steekproef en miniaturen |
+| `rs_report.py` | het oordeel per bestand met toleranties, als pagina |
+| `rs_indicators.py` | de buurtindicatoren, als pagina met twaalf figuren en een json met de kerncijfers |
+| `tolerances.json` | de toleranties van rs_report: `default` en `rules` (fnmatch op de bestandsnaam, `cell_pct`) |
 
 ---
+
+## Wat er niet meer is
+
+De revision-runner van voor juli 2026 (het Tkinter-venster `main.py` met `Start.bat`, `config.json`,
+`git_tools.py`, `experiment_builder.py` en `overrides.py`, dat een commit kloonde en met `regression.py`
+uit de GeoDMS-installatie doorrekende) is vervangen door de enginetoets en uit de repo gehaald; hij
+staat in de geschiedenis tot en met commit 67e81df.
 
 ## Openstaand
 
-- Onderdeel 1 (de wizard) weer werkend maken en koppelen aan onderdeel 2:
-  na het uitrekenen van een revisie automatisch de exports door `rs_compare` /
-  `rs_report` halen, in plaats van de oude `regression.py`/`profiler.py` uit de
-  GeoDMS-installatiemap. Orchestratie per (commit, GeoDMS-versie).
-- `rs_indicators`: optionele extra indicatoren die een aanvullende GeoDMS-export
-  vergen (suitability-verdeling van nieuwe cellen, dorpstoets op
-  stedelijkheidsklasse, claimrealisatie per allocatieregio).
+- De proef van de enginetoets op een schone machine (Setup.ps1 zegt wat er ontbreekt).
+- Het toetsrapport noemt Kaarten.ps1 alleen als opdracht onder Hoe de runs draaiden; de kaarten en grafieken zijn een losse stap.
+- Extra buurtindicatoren die een aanvullende GeoDMS-export vergen: de suitability-verdeling van nieuwe
+  cellen, een dorpstoets op stedelijkheidsklasse, de claimrealisatie per allocatieregio.
