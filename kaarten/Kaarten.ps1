@@ -27,7 +27,8 @@
    -Baseline    Tag van de baseline; leeg is de nieuwste.
    -Casus       Een casus (WLO_hoog_BAU); leeg is elke casus die beide runs hebben.
    -Zichtjaar   Y2040; leeg is het laatste zichtjaar van de run van B.
-   -Exe         GeoDmsRun.exe voor het buurtgrid; leeg is de versie uit Run2120.ps1 van de kopie.
+   -Exe         GeoDmsRun.exe voor het buurtgrid; leeg is de versie uit Run2120.ps1 van de kopie als die er staat,
+                anders de nieuwste GeoDMS op de machine.
    -Toon        Open de pagina's in de browser.
    -Repo, -Werkmap, -Toetsmap   Als bij Toets.ps1.
 
@@ -54,7 +55,7 @@ $ErrorActionPreference = 'Stop'
 if (-not $Repo) { $Repo = (Get-Location).Path }
 if (-not (Test-Path (Join-Path $Repo 'cfg\main.dms'))) { throw "geen cfg\main.dms in $Repo; start vanuit de werkkopie van het model of geef -Repo" }
 $Python = 'python'
-$StandaardExe = 'C:\Program Files\ObjectVision\GeoDms20.20.0.m\GeoDmsRun.exe'
+. (Join-Path $PSScriptRoot '..\enginetoets\GeoDms.ps1')
 
 function Write-Regel([string]$Tekst) { Write-Host ("{0}  {1}" -f (Get-Date -Format 'HH:mm:ss'), $Tekst) }
 function Invoke-Git {
@@ -122,12 +123,7 @@ $buurtCsv  = Join-Path $buurtMap "Buurt_namen_$suffix.csv"
 if (-not (Test-Path $buurtTif)) {
     $kopie = Join-Path $Werkmap (Split-Path $runB -Leaf)
     if (-not (Test-Path (Join-Path $kopie 'cfg\main.dms'))) { throw "het buurtgrid $buurtTif bestaat nog niet en de kopie $kopie is er niet om het mee te maken; draai Toets.ps1 -Commit $sha opnieuw" }
-    if (-not $Exe) {
-        $runner = Join-Path $kopie 'batch\Run2120.ps1'
-        $m = if (Test-Path $runner) { [regex]::Match((Get-Content $runner -Raw), '\$Exe\s*=\s*''([^'']+GeoDmsRun\.exe)''') } else { $null }
-        $Exe = if ($m -and $m.Success -and (Test-Path $m.Groups[1].Value)) { $m.Groups[1].Value } else { $StandaardExe }
-    }
-    if (-not (Test-Path $Exe)) { throw "GeoDmsRun niet gevonden: $Exe" }
+    $Exe = Find-GeoDmsRun $Exe (Join-Path $kopie 'batch\Run2120.ps1')
     Write-Regel "buurtgrid : maken met $(Split-Path (Split-Path $Exe -Parent) -Leaf) uit $kopie"
     $dmsPad  = Join-Path $kopie 'cfg\main\Buurtgrid.dms'
     $mainPad = Join-Path $kopie 'cfg\main.dms'

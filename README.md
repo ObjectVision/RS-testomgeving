@@ -24,7 +24,7 @@ productierun: een git-tag `baseline/<datum>`, het profiel van alle instellingen 
 bewaarde uitvoer van zijn toetsrun) en een log. Elke toets rekent een commit door in een eigen
 git-worktree met een eigen LocalData, onder het profiel van de baseline plus het testprofiel van de
 branch (`enginetoets\profielen\<branch>.csv`: een provincie, een of twee zichtjaren, de varianten), met
-de GeoDMS-versie die `Run2120.ps1` van die commit zelf noemt. Onder dat profiel is de allocatie
+de GeoDMS-versie die `Run2120.ps1` van die commit noemt, of anders de nieuwste op de machine. Onder dat profiel is de allocatie
 deterministisch, dus elk verschil is rekenwijze of invoer. Groepen commits worden als ketting
 vergeleken: elke groep tegen de toetsrun van de groep ervoor.
 

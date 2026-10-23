@@ -55,7 +55,9 @@
                    wordt niet aangeraakt, op git worktree add na.
    -Patch          Een patchbestand dat na het uitchecken op de kopie wordt gelegd, bijvoorbeeld een fix die
                    in die branch nog niet is gecommit. Komt in batch\log\patch_extern.patch van de kopie.
-   -Exe            GeoDmsRun.exe; leeg is de versie die Run2120.ps1 van de commit zelf als standaard noemt.
+   -Exe            GeoDmsRun.exe; leeg is de versie die Run2120.ps1 van de commit noemt als die op deze machine
+                   staat, anders de nieuwste GeoDMS die er staat. Reken beide kanten van een vergelijking met
+                   dezelfde versie; het rapport noemt de versie van beide kanten.
    -MetIndicatorBasedata  Draai ook WriteBasedata/Generate_Run4_IndicatorenData, als Run2120.ps1 die kent.
    -EigenInstellingen     Leg het baselineprofiel niet op: de commit rekent met zijn eigen instellingen, alleen het
                    testprofiel komt eroverheen. Dat is de volle run van de acceptatie (zie Acceptatie.ps1), niet de enginetoets.
@@ -103,7 +105,7 @@ if (-not $Repo) { $Repo = (Get-Location).Path }
 if (-not (Test-Path (Join-Path $Repo 'cfg\main.dms'))) { throw "geen cfg\main.dms in $Repo; start vanuit de werkkopie van het model of geef -Repo" }
 if ($Patch -and -not (Test-Path $Patch)) { throw "patch niet gevonden: $Patch" }
 $Python = 'python'
-$StandaardExe = 'C:\Program Files\ObjectVision\GeoDms20.20.0.m\GeoDmsRun.exe'
+. (Join-Path $PSScriptRoot 'GeoDms.ps1')
 
 function Write-Regel([string]$Tekst) { Write-Host ("{0}  {1}" -f (Get-Date -Format 'HH:mm:ss'), $Tekst) }
 
@@ -232,11 +234,7 @@ if ($patches.Count -and -not $AlleenRapport) {
 
 # ---------------------------------------------------------------- 4. GeoDMS en de runner van deze commit
 $runnerTekst = Get-Content $Runner -Raw
-if (-not $Exe) {
-    $m = [regex]::Match($runnerTekst, '\$Exe\s*=\s*''([^'']+GeoDmsRun\.exe)''')
-    $Exe = if ($m.Success -and (Test-Path $m.Groups[1].Value)) { $m.Groups[1].Value } else { $StandaardExe }
-}
-if (-not (Test-Path $Exe)) { throw "GeoDmsRun niet gevonden: $Exe" }
+$Exe = Find-GeoDmsRun $Exe $Runner
 $geodms = Split-Path (Split-Path $Exe -Parent) -Leaf
 # Welke parameters kent Run2120.ps1 van deze commit? Een oudere commit kent -ZonderIndicatorBasedata niet.
 $blok = [regex]::Match($runnerTekst, 'param\((.*?)\r?\n\)', 'Singleline').Groups[1].Value

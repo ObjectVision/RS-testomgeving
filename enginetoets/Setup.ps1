@@ -15,7 +15,7 @@
 
  WAT ER NODIG IS
    Voor het oordeel (de hash van de standtifs, de controlewaarden, het statische deel):
-     GeoDmsRun.exe van de versie die -Exe van Toets.ps1 noemt, git op het pad, PowerShell 7,
+     GeoDmsRun.exe (de versie die batch\Run2120.ps1 noemt, anders de nieuwste op de machine), git op het pad, PowerShell 7,
      Python 3.10 of hoger zonder pakketten, de registersleutel LocalDataDir van GeoDMS,
      cfg\main\ConfigSettings.dms, de map Data, en de bronmap achter SourceDataDir.
    Voor de celverschillen per tif in het rapport: de Python-pakketten numpy en tifffile.
@@ -25,7 +25,7 @@
 [CmdletBinding()]
 param(
     [string] $Repo = '',
-    [string] $Exe = 'C:\Program Files\ObjectVision\GeoDms20.20.0.m\GeoDmsRun.exe',
+    [string] $Exe = '',
     [switch] $MaakConfigSettings
 )
 
@@ -49,14 +49,14 @@ Write-Host "Setup voor de enginetoets in $Repo" -ForegroundColor Cyan
 Write-Host ""
 
 # ---------------------------------------------------------------- GeoDMS
-if (Test-Path $Exe) {
-    Meld 'OK' 'GeoDmsRun' $Exe
-} else {
-    $gevonden = @(Get-ChildItem 'C:\Program Files\ObjectVision' -Directory -ErrorAction SilentlyContinue |
-        Where-Object { Test-Path (Join-Path $_.FullName 'GeoDmsRun.exe') } | Sort-Object Name | Select-Object -Last 3)
-    $hint = if ($gevonden) { "niet op $Exe; wel gevonden: " + (($gevonden | ForEach-Object { $_.Name }) -join ', ') + ". Geef die versie mee met -Exe aan Toets.ps1, of installeer de versie uit Run2120.ps1." }
-            else { "niet gevonden onder C:\Program Files\ObjectVision. Installeer GeoDMS (de versie uit batch\Run2120.ps1) van https://github.com/ObjectVision/GeoDMS/releases." }
-    Meld 'ONTBREEKT' 'GeoDmsRun' $hint
+. (Join-Path $PSScriptRoot 'GeoDms.ps1')
+try {
+    $exeGevonden = Find-GeoDmsRun $Exe (Join-Path $Repo 'batch\Run2120.ps1')
+    $alle = @(Get-GeoDmsInstallaties)
+    $toelichting = if ($alle.Count -gt 1) { "$exeGevonden; op deze machine staan ook " + (($alle | Where-Object { $_.Exe -ne $exeGevonden } | Select-Object -First 3 | ForEach-Object { $_.Naam }) -join ', ') } else { $exeGevonden }
+    Meld 'OK' 'GeoDmsRun' $toelichting
+} catch {
+    Meld 'ONTBREEKT' 'GeoDmsRun' "$_"
 }
 
 $sleutel = Get-ItemProperty 'HKCU:\Software\ObjectVision\OVSRV08\GeoDMS' -ErrorAction SilentlyContinue
