@@ -20,7 +20,7 @@ Gebruik (Kaarten.ps1 in deze map roept dit aan voor twee toetsruns van de engine
     buurt-tif, zichtjaar, casus, timestamp) in indicatoren.json en bovenaan indicatoren.html.
 
 Verwachte run-structuur (de LocalData van een toetsrun, of de bewaarde uitvoer van de baseline):
-    <run>/BaseData/StandBasisjaar/{Wonen,Werken}/<subsector>_<suffix>.tif
+    <run>/BaseData/StandBasisjaar/{Wonen,Werken}/<subsector>_<suffix>[_<hash>].tif
     <run>/Allocatie/<casus>/Stand<zichtjaar>/{Wonen,Werken}/<subsector>_<suffix>_SS-*.tif
 De subsectoren zijn de bestanden in die mappen (Footprint telt niet mee); een vaste lijst is er niet,
 zodat een nieuwe subsector vanzelf meedoet.
@@ -32,6 +32,7 @@ import glob
 import html
 import json
 import os
+import re
 from datetime import datetime, timezone
 
 import numpy as np
@@ -44,14 +45,25 @@ NIET_EEN_SUBSECTOR = {"Footprint"}  # bestanden in de standmappen die geen eenhe
 
 
 def subsectoren(run_dir, suffix, categorie):
-    """De subsectoren van een categorie: de bestanden <subsector>_<suffix>.tif in de basisjaarmap van run_dir."""
-    pat = os.path.join(run_dir, "BaseData", "StandBasisjaar", categorie, f"*_{suffix}.tif")
+    """De subsectoren van een categorie: de bestanden <subsector>_<suffix>.tif in de basisjaarmap van run_dir, met of zonder fingerprint-hash achter de suffix."""
+    pat = os.path.join(run_dir, "BaseData", "StandBasisjaar", categorie, f"*_{suffix}*.tif")
+    vorm = re.compile(rf"^(.+)_{re.escape(suffix)}(_[0-9a-f]{{8}})?\.tif$")
     namen = []
     for fn in sorted(glob.glob(pat)):
-        naam = os.path.basename(fn)[: -len(f"_{suffix}.tif")]
-        if naam not in NIET_EEN_SUBSECTOR:
-            namen.append(naam)
+        m = vorm.match(os.path.basename(fn))
+        if m and m.group(1) not in NIET_EEN_SUBSECTOR and m.group(1) not in namen:
+            namen.append(m.group(1))
     return namen
+
+
+def basisjaar_pad(run_dir, categorie, ss, suffix):
+    """Het bestand van de basisjaarstand, met of zonder fingerprint-hash; staan er meer standen, dan de nieuwste."""
+    pat = os.path.join(run_dir, "BaseData", "StandBasisjaar", categorie, f"{ss}_{suffix}*.tif")
+    vorm = re.compile(rf"^{re.escape(ss)}_{re.escape(suffix)}(_[0-9a-f]{{8}})?\.tif$")
+    hits = [fn for fn in glob.glob(pat) if vorm.match(os.path.basename(fn))]
+    if not hits:
+        raise FileNotFoundError(f"geen bestand voor patroon: {pat}")
+    return max(hits, key=os.path.getmtime)
 
 
 # ------------------------------------------------------------------ inlezen
@@ -83,12 +95,12 @@ def load_stand(run_dir, casus, stand, suffix, categorie, subsectoren, ref_geo=No
     total = None
     for ss in subsectoren:
         if stand == "basisjaar":
-            pat = os.path.join(run_dir, "BaseData", "StandBasisjaar", categorie,
-                               f"{ss}_{suffix}.tif")
+            pat = basisjaar_pad(run_dir, categorie, ss, suffix)
+            arr, geo = read_tif(pat)
         else:
             pat = os.path.join(run_dir, "Allocatie", casus, f"Stand{stand}",
                                categorie, f"{ss}_{suffix}_SS-*.tif")
-        arr, geo = read_tif(find_one(pat))
+            arr, geo = read_tif(find_one(pat))
         arr = np.nan_to_num(arr.astype(np.float64))
         if ref_geo is not None and geo is not None and not np.allclose(geo, ref_geo):
             raise ValueError(f"grid van {pat} wijkt af van referentie: {geo} vs {ref_geo}\n"

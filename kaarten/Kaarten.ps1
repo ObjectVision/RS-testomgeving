@@ -108,7 +108,7 @@ Write-Regel "B         : $sha  $runB"
 # Het studiegebied staat in de bestandsnamen van de stand: Footprint_<StudyArea>.tif.
 $footprint = @(Get-ChildItem (Join-Path $runB 'BaseData\StandBasisjaar\Wonen') -Filter 'Footprint_*.tif' -ErrorAction SilentlyContinue)
 if (-not $footprint.Count) { throw "geen BaseData\StandBasisjaar\Wonen\Footprint_<studiegebied>.tif in $runB" }
-$suffix = $footprint[0].BaseName.Substring('Footprint_'.Length)
+$suffix = $footprint[0].BaseName.Substring('Footprint_'.Length) -replace '_[0-9a-f]{8}$', ''
 
 $casussen = if ($Casus) { @($Casus) } else {
     $a = @(Get-ChildItem (Join-Path $runA 'Allocatie') -Directory | ForEach-Object { $_.Name })

@@ -207,8 +207,9 @@ def tifs_onder(run, casussen):
     for sub in mappen:
         wortel = Path(run) / sub
         if wortel.is_dir():
-            for p in wortel.rglob("*.tif"):
-                uit[p.relative_to(run).as_posix()] = p
+            # Een basisjaarstand draagt een fingerprint-hash in de naam; zonder die hash vergelijken twee runs dezelfde kaart, en van meer standen telt de nieuwste.
+            for p in sorted(wortel.rglob("*.tif"), key=lambda q: q.stat().st_mtime):
+                uit[re.sub(r"_[0-9a-f]{8}\.tif$", ".tif", p.relative_to(run).as_posix())] = p
     return uit
 
 
