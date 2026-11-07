@@ -10,7 +10,7 @@ Twee mappen:
 | Map | Wat | Startpunt |
 |---|---|---|
 | `enginetoets` | een commit doorrekenen onder het bevroren profiel van de baseline en het verschil met een eerdere run meten: koptabel, patroon per sector, controlewaarden, en een oordeel in het toetslog van de branch | `Enginetoets.cmd` (dubbelklik), of `Toets.ps1` |
-| `kaarten` | kaarten en grafieken als een toets VERSCHILT zegt: per kaart de verschilcellen in beeld, en per CBS-buurt waar en in welke vorm de groei landt | `Kaarten.ps1 -Commit <sha> -Van <sha>` |
+| `kaarten` | kaarten en grafieken als een toets VERSCHILT zegt: per kaart de verschilcellen in beeld, en per CBS-buurt waar en in welke vorm de groei landt; en na elke run de patroonkaarten: waar de nieuwbouw los van de woonkernen landt | `Kaarten.ps1 -Commit <sha> -Van <sha>`, `patroonkaarten.py --run <LocalData>` |
 
 De scripts staan buiten de modelrepo; alleen de baseline-tag staat in de modelrepo. Ze draaien vanuit de
 werkkopie van het model (de map met `cfg\main.dms`), of met `-Repo` naar die werkkopie.
@@ -147,6 +147,89 @@ nieuwe cellen binnen 300 meter van bestaand bebouwd gebied van 86 naar 82 procen
 
 Voorwaarden: Python 3.10 of hoger met `numpy`, `tifffile`, `pillow`, `imagecodecs` en `scipy`.
 
+### `patroonkaarten.py`: waar het patroon vreemd is, na elke run
+
+De controlewaarden van RSopen en de scripts hierboven meten totalen, claims, clustergrootte en de afstand tot het
+bebouwd gebied van het basisjaar. Een patroon als ringen en banden van nieuwe woningen rond kleine losse clusters midden
+in een polder zien ze niet, want een boerenerf telt daar als bebouwd gebied; zo bleef het patroon in de Noordoostpolder
+en Dronten na de slotrun van NL2120 (31 oktober 2026) onopgemerkt tot iemand de kaart bekeek. `patroonkaarten.py` kijkt
+daarom na elke run naar de ruimtelijke patronen. Het leest alleen de standkaarten van een run, met of zonder tweede run
+ernaast, heeft geen toetsrun en geen GeoDMS nodig, en schrijft alleen in de uitvoermap.
+
+Wat het meet, per zichtjaar, per vak van 10 bij 10 km, per gemeente en voor het hele studiegebied:
+
+| Maat | Wat het is |
+|---|---|
+| nieuwe woningen | per cel de toename van het aantal woningen (alle woonsubsectoren) tegen de stand van het zichtjaar ervoor, alleen waar het aantal groeit; bij het eerste zichtjaar zonder de BAG-nieuwbouw die het model in de startstand zet (de toename op een woncel van `SubSector_rel` met een jaar van verandering van voor het eerste zichtjaar) |
+| afstandsbanden | het deel van de nieuwe woningen tot 250 m, tussen 250 m en 1 km en verder dan 1 km van een cel van de BRT-woonkern (`IsWoonkern`), gemeten tussen celmiddens |
+| losse clusters | aaneengesloten cellen wonen of werken uit `SubSector_rel` (8-buren, cumulatief sinds het basisjaar) waarvan geen cel binnen 250 m van een woonkern ligt; met wonen of alleen werken, met oppervlak, en apart de clusters die alleen uit de startstand komen |
+| ringwoningen | nieuwe woningen binnen 350 m van een los cluster van de stand ervoor (een kiem) en niet binnen 350 m van een woonkern; bij het eerste zichtjaar zijn de losse clusters van de startstand de kiemen; uitgesplitst naar kiemen met wonen en met alleen werken, en naar kiemen kleiner dan 2 ha |
+| aangegroeide kiemen | kiemen met minstens een nieuwe woning in hun ring |
+| BAG-referentie | de BAG-nieuwbouw in de startstand met dezelfde afstandsbanden, en de losse clusters die alleen uit de startstand komen |
+
+Welke index van `SubSector_rel` wonen en welke werken is, ijkt het script zelf: per index het aandeel cellen met woningen
+en met banen in de stand van het eerste zichtjaar (bij NL2120 0 tot en met 3 wonen met een aandeel van 1,0 en 4 tot en
+met 9 werken). Het SS-nummer en de fingerprint-hash in de bestandsnamen vindt het ook zelf; een basisjaar of woonkern met
+en zonder hash werkt allebei. Het studiegebied haalt het uit `Footprint_<gebied>.tif`; voor een provincie snijdt het het
+landelijke buurtgrid op het raster van de provincie.
+
+Het oordeel staat los van de meting. Elke tegel en gemeente krijgt per zichtjaar een score: de ringwoningen gedeeld door
+100, plus de nieuwe woningen verder dan 1 km van een woonkern gedeeld door 250, plus de aangegroeide kiemen gedeeld door 10.
+Opvallend is een score vanaf 3. Een tegel is een blok van 2 bij 2 vakken (20 km) en begint op elk vak, zodat een
+brandhaard niet door een tegelgrens gesplitst wordt; de detailkaarten zijn van de tegels met de hoogste score die geen
+vak delen met een tegel die hoger staat. De ijkmaten, de drempel en de aantallen kaarten staan in `patroondrempels.json`
+onder `oordeel`; de maten zelf onder `meten`. Wie alleen het oordeel verandert, draait met `--herbeoordeel` en hoeft niet
+opnieuw te meten.
+
+```
+python kaarten\patroonkaarten.py --run C:\LocalData\RSopen_NL2120 --casus WLO_hoog_BAU --zichtjaren Y2040 Y2050 Y2060 --naam slotrun --out C:\LocalData\RSopen_toets\NL2120\patronen\slotrun
+python kaarten\patroonkaarten.py ... --vergelijk <LocalData van een andere run> --naam-vergelijk sept      een tweede run ernaast
+python kaarten\patroonkaarten.py ... --vergelijk <dezelfde LocalData> --casus-vergelijk WLO_hoog_BAU_ref  een andere casus van dezelfde run
+python kaarten\patroonkaarten.py ... --gemeenten Noordoostpolder Dronten                                   deze gemeenten krijgen hoe dan ook een kaart en een regel in de kern
+python kaarten\patroonkaarten.py --out <dezelfde map> --herbeoordeel                                       alleen oordeel, kaarten en rapport opnieuw
+```
+
+Een LocalData waarin een andere sessie of een GeoDMS-proces werkt, lees je niet rechtstreeks: een GeoDMS-proces dat een
+bestand wil overschrijven dat dit script openhoudt, valt om. Kijk eerst met `Get-CimInstance Win32_Process` naar de
+draaiende `GeoDmsRun`-processen en kopieer anders de standmappen, `BaseData\StandBasisjaar\Wonen` en de
+`IsWoonkern`-tif met robocopy naar een eigen map (zonder `Landbouw` en `PandFootprint` is dat ongeveer 400 MB voor drie
+landelijke zichtjaren).
+
+Uitvoer in `--out`: `patroonmaten.json` (alle maten per vak, gemeente en zichtjaar, met herkomst), `kaartdata.npz` (de
+cellen die de kaarten nodig hebben), `patroonoordeel.json` (scores, volgorde, opvallend, rekentijd), `rapport.html` en
+`rapport.md`, en in `kaarten` een overzichtskaart met de score per vak, per tegel bovenaan een detailkaart, per gemeente
+bovenaan een kaart, en met een tweede run een overzicht en verschilkaarten van dezelfde tegels.
+
+Rekentijd en geheugen, gemeten op OVSRV08 op 7 november 2026 voor heel Nederland met drie zichtjaren: 53 s in totaal
+waarvan 36 s meten, met de bestanden al in de cache; de eerste draai op een koude cache, naast drie GeoDMS-processen, kostte
+ruim 3 minuten. Met een tweede run erbij is het 91 s. De piek is 3,9 GB werkgeheugen en 5,4 GB vastgelegd privegeheugen, met een
+tweede run 4,2 en 5,7 GB. Het script leest elke tif in zijn geheel (een landelijke kaart van 25 m is 145 miljoen cellen,
+582 MB als float32) maar houdt per zichtjaar alleen de cellen met nieuwe woningen en de losse clusters vast; de afstanden
+rekent het met een KD-boom op de rand van de woonkern en de kiemen, niet met een afstandstransformatie over het hele
+raster. Flevoland alleen kost 9 s. `--herbeoordeel` kost 15 tot 25 s.
+
+Hoe je de uitkomst leest. Het rapport begint met de landelijke aandelen tegen de BAG-referentie, de tegels en gemeenten
+met de hoogste score en, met `--gemeenten`, de plek van de gevraagde gemeenten. Een hoge score door ringwoningen met veel
+aangegroeide kiemen is het patroon van ringen en banden rond erven en kleine clusters; een hoge score door ringwoningen
+rond een paar grote kiemen is een uitleg die los van de kern begon en daarna doorgroeide; een hoge score door verre
+woningen zonder ringen is bouw ver van elke kern, bijvoorbeeld op een hard plan. De detailkaart zegt welke van de drie
+het is: een dikke cirkel is een los cluster waar in het zichtjaar erna woningen in de ring kwamen, de kleur van een cel
+het zichtjaar van zijn nieuwe woningen. De score is absoluut, dus een gemeente met veel nieuwbouw scoort eerder hoog dan
+een kleine; daarom geeft het rapport er ook de gemeenten bij met het grootste aandeel van hun nieuwbouw in ringen en ver
+van een kern. Met een tweede run staan de gemeenten met de grootste stijging van de score in de kern: dat is wat er tussen
+de twee runs veranderde.
+
+Waar een referentie ontbreekt. De BAG-referentie bestaat alleen voor het eerste zichtjaar: de startstand bevat de
+BAG-nieuwbouw sinds het basisjaar en de vergunde panden, en daarna is er geen waargenomen nieuwbouw. Voor de ringwoningen
+en de aangegroeide kiemen is er geen referentie, want de startstand heeft geen stand ervoor; de ijkmaten van de score zijn
+daarom een oordeel en geen norm uit waarneming. De losse clusters van alleen werken hebben als referentie de werkclusters
+die alleen uit de startstand komen.
+
+Wat het niet kan. Het weet niet of een los cluster een boerenerf, een bedrijf of een geplande wijk is, en niet of verre
+bouw op een hard plan ligt; daarvoor is de kaart. De BRT-woonkern dekt niet elke recente wijk, zodat een cluster tegen
+een nieuwe wijk aan als los kan tellen. Sloop en verdichting zonder groei tellen niet mee. Het kijkt alleen naar wonen;
+werklocaties komen alleen voor als kiem. En het vergelijkt twee runs alleen op hetzelfde raster.
+
 | Bestand | Rol |
 |---|---|
 | `Kaarten.ps1` | twee toetsruns kiezen, het buurtgrid maken als het er nog niet is, en beide scripts per casus draaien |
@@ -154,6 +237,8 @@ Voorwaarden: Python 3.10 of hoger met `numpy`, `tifffile`, `pillow`, `imagecodec
 | `rs_report.py` | het oordeel per bestand met toleranties, als pagina |
 | `rs_indicators.py` | de buurtindicatoren, als pagina met twaalf figuren en een json met de kerncijfers |
 | `tolerances.json` | de toleranties van rs_report: `default` en `rules` (fnmatch op de bestandsnaam, `cell_pct`) |
+| `patroonkaarten.py` | de patroonkaarten van een run: meten, oordelen, kaarten en rapport |
+| `patroondrempels.json` | de instellingen van patroonkaarten.py: `meten` (afstanden, tegelmaat) en `oordeel` (ijkmaten, drempel, aantallen kaarten) |
 
 ---
 

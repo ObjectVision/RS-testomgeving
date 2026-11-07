@@ -1,0 +1,50 @@
+{
+  "_doc": "Instellingen van patroonkaarten.py. De sectie meten bepaalt wat er gemeten wordt; wie daar iets verandert moet opnieuw meten. De sectie oordeel bepaalt de score per tegel en gemeente en wat als opvallend geldt; wie daar iets verandert draait patroonkaarten.py met --herbeoordeel, dat alleen het oordeel, het rapport en de kaarten opnieuw maakt.",
+  "meten": {
+    "tegel_km": 20,
+    "tegel_stap_km": 10,
+    "kern_nabij_m": 250,
+    "kern_ver_m": 1000,
+    "ring_m": 350,
+    "ring_kernzone_m": 350,
+    "toename_min_woningen": 0.01,
+    "kaart_min_woningen": 0.5,
+    "aangegroeid_min_woningen": 1.0,
+    "kiem_klein_ha": 2.0,
+    "ijking_min_aandeel": 0.5,
+    "_uitleg": {
+      "tegel_km": "zijde van de tegels in kilometer; een veelvoud van tegel_stap_km",
+      "tegel_stap_km": "de maten worden geteld per vak van deze zijde, op veelvouden daarvan in RD-coordinaten; een tegel is een blok van vakken, en er begint een tegel op elk vak, zodat een plek in meer tegels valt en een brandhaard niet door een tegelgrens wordt gesplitst; gelijk aan tegel_km geeft tegels die elkaar niet overlappen",
+      "kern_nabij_m": "een cel ligt bij een kern als hij binnen deze afstand van een cel van de BRT-woonkern ligt; een cluster is los als geen van zijn cellen dat doet",
+      "kern_ver_m": "grens tussen de afstandsband 'tot 1 km' en 'verder dan 1 km' van een BRT-woonkern",
+      "ring_m": "een nieuwe woning ligt in een ring als hij binnen deze afstand van een los cluster van het zichtjaar ervoor ligt",
+      "ring_kernzone_m": "nieuwe woningen binnen deze afstand van een BRT-woonkern tellen niet als ringwoning, ook niet als ze bij een los cluster liggen",
+      "toename_min_woningen": "een cel telt als toename als er meer dan dit aantal woningen bij kwam; kleiner is afronding",
+      "kaart_min_woningen": "een cel krijgt op de detailkaart de kleur van zijn zichtjaar vanaf dit aantal nieuwe woningen",
+      "aangegroeid_min_woningen": "een los cluster van het vorige zichtjaar telt als aangegroeid als er in zijn ring minstens dit aantal woningen bij kwam",
+      "kiem_klein_ha": "een los cluster kleiner dan dit oppervlak telt als klein (een erf of een snipper); de ringwoningen rond kleine clusters staan apart in de meting",
+      "ijking_min_aandeel": "een index van SubSector_rel telt als wonen (werken) als minstens dit aandeel van zijn cellen woningen (banen) heeft in de stand"
+    }
+  },
+  "oordeel": {
+    "ijkmaat_ringwoningen": 100,
+    "ijkmaat_ver_woningen": 250,
+    "ijkmaat_aangegroeide_kiemen": 10,
+    "opvallend_score": 3.0,
+    "top_tegels": 10,
+    "top_gemeenten": 15,
+    "top_gemeentekaarten": 5,
+    "aandeel_min_woningen": 1000,
+    "_uitleg": {
+      "score": "score = ringwoningen / ijkmaat_ringwoningen + nieuwe woningen verder dan 1 km van een woonkern / ijkmaat_ver_woningen + aangegroeide losse clusters / ijkmaat_aangegroeide_kiemen, per tegel of gemeente en per zichtjaar; elke term is dus 1 bij de ijkmaat",
+      "ijkmaat_ringwoningen": "aantal ringwoningen dat een term van 1 oplevert",
+      "ijkmaat_ver_woningen": "aantal nieuwe modelwoningen verder dan 1 km van een woonkern dat een term van 1 oplevert",
+      "ijkmaat_aangegroeide_kiemen": "aantal losse clusters van het vorige zichtjaar met nieuwe woningen in hun ring dat een term van 1 oplevert",
+      "opvallend_score": "een tegel of gemeente is opvallend vanaf deze score in een zichtjaar",
+      "top_tegels": "aantal tegels met een detailkaart, de hoogste score over de zichtjaren eerst",
+      "top_gemeenten": "aantal gemeenten in de tabellen per zichtjaar",
+      "top_gemeentekaarten": "aantal gemeenten met de hoogste score die een eigen kaart krijgen; met --gemeenten komen er gemeenten bij",
+      "aandeel_min_woningen": "de rangorde naar aandeel (ringwoningen en woningen verder dan 1 km tegen alle nieuwe woningen) telt alleen gemeenten met minstens dit aantal nieuwe woningen in een zichtjaar"
+    }
+  }
+}
